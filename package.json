@@ -9,9 +9,19 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.99.0",
+    "@jup-ag/plugin": "^1.0.14",
+    "@solana/spl-token": "^0.4.14",
+    "@solana/web3.js": "^1.98.4",
+    "@tanstack/react-query": "^5.100.14",
+    "ethers": "^6.16.0",
+    "framer-motion": "^12.40.0",
+    "lucide-react": "^1.16.0",
     "next": "16.2.6",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-hot-toast": "^2.6.0",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
