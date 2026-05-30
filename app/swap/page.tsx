@@ -91,7 +91,7 @@ export default function SwapPage() {
 
               {/* Current price */}
               <div className="mb-4">
-                <p className="text-gray-500 text-xs mb-1">Jupiter Price</p>
+                <p className="text-gray-500 text-xs mb-1">FBiT Price (USD)</p>
                 {priceData.loading ? (
                   <div className="flex items-center gap-2 h-9">
                     <div className="jupiter-spinner jupiter-spinner-sm" />
@@ -139,7 +139,7 @@ export default function SwapPage() {
               {/* Last updated */}
               {lastUpdated && (
                 <p className="text-gray-600 text-xs mb-4 text-right">
-                  🪐 {priceData.source === 'quote-api' ? 'Jupiter Quote API' : 'Jupiter Price API'}
+                  🪐 {priceData.source === 'dexscreener' ? 'DexScreener' : priceData.source === 'jupiter-quote' ? 'Jupiter Quote' : 'Jupiter Price'}
                   {' · '}{lastUpdated.toLocaleTimeString('en-IN')} · auto 30s
                 </p>
               )}
