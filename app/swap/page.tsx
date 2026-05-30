@@ -7,11 +7,10 @@ import {
   JUPITER_SWAP_URL,
   JUPITER_TOKEN_URL,
   JUPITER_WATCHLIST,
-  JUPITER_PRICE_API,
   TOKEN_INFO,
-  SOL_MINT,
 } from '@/lib/jupiterConfig';
 import { StripPromoBanner } from '@/components/PromoAdBanners';
+import { useFBiTPrice, fmtUSD } from '@/lib/useFBiTPrice';
 
 const JupiterTerminal = dynamic(() => import('@/components/JupiterTerminal'), {
   ssr: false,
@@ -23,142 +22,6 @@ const JupiterTerminal = dynamic(() => import('@/components/JupiterTerminal'), {
   ),
 });
 
-// ─── Jupiter Price API types ──────────────────────────────────────────────────
-
-interface JupiterPriceResponse {
-  data: Record<string, {
-    id:    string;
-    price: string;
-    extraInfo?: {
-      quotedPrice?: {
-        buyPrice:  string;
-        sellPrice: string;
-        buyAt:     number;
-        sellAt:    number;
-      };
-      lastSwappedPrice?: {
-        lastJupiterBuyPrice:  string;
-        lastJupiterSellPrice: string;
-        lastJupiterBuyAt:     number;
-        lastJupiterSellAt:    number;
-      };
-      confidenceLevel?: 'high' | 'medium' | 'low';
-    };
-  }>;
-}
-
-interface FBiTPrice {
-  price:       string;
-  priceRaw:    number;
-  buyPrice:    string;
-  sellPrice:   string;
-  spread:      string;
-  confidence:  'high' | 'medium' | 'low' | 'unknown';
-  updatedAt:   Date;
-  source:      'price-api' | 'quote-api';
-}
-
-const QUOTE_API   = 'https://quote-api.jup.ag/v6/quote';
-const SOL_LAMPORTS = 1_000_000_000; // 1 SOL
-
-function fmtPrice(n: number): string {
-  if (n === 0)     return '—';
-  if (n < 0.0001)  return n.toExponential(2);
-  if (n < 0.01)    return n.toFixed(6);
-  if (n < 1)       return n.toFixed(4);
-  return n.toFixed(2);
-}
-
-// ── Method 1: Jupiter Price API v2 ───────────────────────────────────────────
-async function fetchViaPriceAPI(): Promise<FBiTPrice | null> {
-  const res  = await fetch(JUPITER_PRICE_API, { cache: 'no-store' });
-  const json = await res.json() as JupiterPriceResponse;
-  const entry = json?.data?.[TOKEN_INFO.mint];
-  if (!entry) return null;
-
-  const priceRaw = parseFloat(entry.price);
-  if (!priceRaw) return null;
-
-  const buyRaw    = parseFloat(entry.extraInfo?.quotedPrice?.buyPrice  ?? entry.price);
-  const sellRaw   = parseFloat(entry.extraInfo?.quotedPrice?.sellPrice ?? entry.price);
-  const spreadPct = buyRaw > 0 ? ((buyRaw - sellRaw) / buyRaw) * 100 : 0;
-
-  return {
-    price:      '$' + fmtPrice(priceRaw),
-    priceRaw,
-    buyPrice:   '$' + fmtPrice(buyRaw),
-    sellPrice:  '$' + fmtPrice(sellRaw),
-    spread:     spreadPct.toFixed(2) + '%',
-    confidence: entry.extraInfo?.confidenceLevel ?? 'unknown',
-    updatedAt:  new Date(),
-    source:     'price-api',
-  };
-}
-
-// ── Method 2: Jupiter Quote API (swap simulation) ────────────────────────────
-// Computes FBiT price by: (1) getting SOL/USD price, (2) quoting 1 SOL → FBiT
-async function fetchViaQuoteAPI(): Promise<FBiTPrice | null> {
-  // SOL price in USD
-  const solRes  = await fetch(
-    `https://api.jup.ag/price/v2?ids=${SOL_MINT}`,
-    { cache: 'no-store' },
-  );
-  const solJson = await solRes.json() as JupiterPriceResponse;
-  const solUSD  = parseFloat(solJson?.data?.[SOL_MINT]?.price ?? '0');
-  if (!solUSD) return null;
-
-  // Buy quote: 1 SOL → FBiT
-  const buyRes  = await fetch(
-    `${QUOTE_API}?inputMint=${SOL_MINT}&outputMint=${TOKEN_INFO.mint}&amount=${SOL_LAMPORTS}&slippageBps=50`,
-    { cache: 'no-store' },
-  );
-  const buyQuote = await buyRes.json() as { outAmount?: string; priceImpactPct?: string };
-  const fbitOut  = parseInt(buyQuote?.outAmount ?? '0');
-  if (!fbitOut) return null;
-
-  const fbitPerSol = fbitOut / Math.pow(10, TOKEN_INFO.decimals);
-  const buyPriceRaw = solUSD / fbitPerSol;
-
-  // Sell quote: same FBiT amount → SOL → USD
-  let sellPriceRaw = buyPriceRaw;
-  try {
-    const sellRes  = await fetch(
-      `${QUOTE_API}?inputMint=${TOKEN_INFO.mint}&outputMint=${SOL_MINT}&amount=${fbitOut}&slippageBps=50`,
-      { cache: 'no-store' },
-    );
-    const sellQuote  = await sellRes.json() as { outAmount?: string };
-    const solBack    = parseInt(sellQuote?.outAmount ?? '0') / SOL_LAMPORTS;
-    if (solBack) sellPriceRaw = (solBack * solUSD) / fbitPerSol;
-  } catch { /* use buy price for sell if quote fails */ }
-
-  const spreadPct = buyPriceRaw > 0 ? ((buyPriceRaw - sellPriceRaw) / buyPriceRaw) * 100 : 0;
-
-  return {
-    price:      '$' + fmtPrice(buyPriceRaw),
-    priceRaw:   buyPriceRaw,
-    buyPrice:   '$' + fmtPrice(buyPriceRaw),
-    sellPrice:  '$' + fmtPrice(sellPriceRaw),
-    spread:     spreadPct.toFixed(2) + '%',
-    confidence: 'medium',
-    updatedAt:  new Date(),
-    source:     'quote-api',
-  };
-}
-
-// ── Main fetcher — tries Price API first, falls back to Quote API ─────────────
-async function fetchJupiterPrice(): Promise<FBiTPrice | null> {
-  try {
-    const priceData = await fetchViaPriceAPI();
-    if (priceData) return priceData;
-  } catch { /* fall through */ }
-
-  try {
-    return await fetchViaQuoteAPI();
-  } catch {
-    return null;
-  }
-}
-
 const CONFIDENCE_STYLE: Record<string, string> = {
   high:    'text-neon-green',
   medium:  'text-yellow-400',
@@ -166,25 +29,24 @@ const CONFIDENCE_STYLE: Record<string, string> = {
   unknown: 'text-gray-500',
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export default function SwapPage() {
   const [followed,    setFollowed]  = useState(false);
   const [watchlisted, setWatch]     = useState(false);
   const [copyTip,     setCopyTip]   = useState(false);
-  const [price,       setPrice]     = useState<FBiTPrice | null>(null);
-  const [loading,     setLoading]   = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  const priceData = useFBiTPrice(30_000);
+
+  // Track last-updated timestamp whenever price changes
   useEffect(() => {
-    async function load() {
-      const data = await fetchJupiterPrice();
-      setPrice(data);
-      setLoading(false);
+    if (!priceData.loading && priceData.price > 0) {
+      setLastUpdated(new Date());
     }
-    load();
-    const timer = setInterval(load, 30_000);
-    return () => clearInterval(timer);
-  }, []);
+  }, [priceData.price, priceData.loading]);
+
+  const spreadPct = priceData.buyPrice > 0
+    ? ((priceData.buyPrice - priceData.sellPrice) / priceData.buyPrice) * 100
+    : 0;
 
   const copyMint = () => {
     navigator.clipboard.writeText(TOKEN_INFO.mint);
@@ -221,7 +83,6 @@ export default function SwapPage() {
                   <p className="text-white font-bold text-lg">FBiT</p>
                   <p className="text-gray-500 text-xs">FutureBit Token · Solana</p>
                 </div>
-                {/* Live indicator */}
                 <div className="ml-auto flex items-center gap-1.5 text-xs text-neon-green font-bold">
                   <span className="w-1.5 h-1.5 rounded-full bg-neon-green animate-pulse-neon" />
                   LIVE
@@ -231,30 +92,30 @@ export default function SwapPage() {
               {/* Current price */}
               <div className="mb-4">
                 <p className="text-gray-500 text-xs mb-1">Jupiter Price</p>
-                {loading ? (
+                {priceData.loading ? (
                   <div className="flex items-center gap-2 h-9">
                     <div className="jupiter-spinner jupiter-spinner-sm" />
                     <span className="text-gray-500 text-sm">Fetching...</span>
                   </div>
                 ) : (
                   <p className="text-3xl font-black text-white">
-                    {price?.price ?? '—'}
+                    {priceData.price > 0 ? fmtUSD(priceData.price) : '—'}
                   </p>
                 )}
               </div>
 
-              {/* Buy / Sell / Spread */}
+              {/* Buy / Sell */}
               <div className="swap-stat-row mb-4">
                 <div className="swap-stat">
                   <span className="text-gray-500 text-xs">Buy Quote</span>
                   <span className="text-neon-green font-bold text-sm">
-                    {loading ? '...' : (price?.buyPrice ?? '—')}
+                    {priceData.loading ? '...' : (priceData.buyPrice > 0 ? fmtUSD(priceData.buyPrice) : '—')}
                   </span>
                 </div>
                 <div className="swap-stat">
                   <span className="text-gray-500 text-xs">Sell Quote</span>
                   <span className="text-red-400 font-bold text-sm">
-                    {loading ? '...' : (price?.sellPrice ?? '—')}
+                    {priceData.loading ? '...' : (priceData.sellPrice > 0 ? fmtUSD(priceData.sellPrice) : '—')}
                   </span>
                 </div>
               </div>
@@ -264,22 +125,22 @@ export default function SwapPage() {
                 <div>
                   <p className="text-gray-500 text-xs">Bid-Ask Spread</p>
                   <p className="text-white font-semibold text-sm">
-                    {loading ? '...' : (price?.spread ?? '—')}
+                    {priceData.loading ? '...' : spreadPct > 0 ? spreadPct.toFixed(2) + '%' : '—'}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-gray-500 text-xs">Price Confidence</p>
-                  <p className={`font-bold text-sm capitalize ${CONFIDENCE_STYLE[price?.confidence ?? 'unknown']}`}>
-                    {loading ? '...' : (price?.confidence ?? '—')}
+                  <p className={`font-bold text-sm capitalize ${CONFIDENCE_STYLE[priceData.confidence]}`}>
+                    {priceData.loading ? '...' : (priceData.confidence || '—')}
                   </p>
                 </div>
               </div>
 
               {/* Last updated */}
-              {price?.updatedAt && (
+              {lastUpdated && (
                 <p className="text-gray-600 text-xs mb-4 text-right">
-                  🪐 {price.source === 'quote-api' ? 'Jupiter Quote API' : 'Jupiter Price API'}
-                  {' · '}{price.updatedAt.toLocaleTimeString('en-IN')} · auto 30s
+                  🪐 {priceData.source === 'quote-api' ? 'Jupiter Quote API' : 'Jupiter Price API'}
+                  {' · '}{lastUpdated.toLocaleTimeString('en-IN')} · auto 30s
                 </p>
               )}
 
@@ -331,7 +192,7 @@ export default function SwapPage() {
               <h3 className="text-white font-bold mb-4">💡 Why Buy FBiT?</h3>
               <ul className="space-y-2.5">
                 {[
-                  { icon: '📈', text: '300% APY staking rewards' },
+                  { icon: '📈', text: 'Up to 300% APY staking rewards' },
                   { icon: '🤝', text: '10-level referral passive income' },
                   { icon: '🎰', text: 'Monthly $2,000 lucky draw tickets' },
                   { icon: '◎',  text: 'Solana mainnet — on-chain transparent' },
@@ -379,9 +240,16 @@ export default function SwapPage() {
                 <p className="text-white font-bold">SOL → FBiT Swap</p>
                 <p className="text-gray-500 text-xs mt-0.5">Jupiter aggregator — best route across all Solana DEXs</p>
               </div>
-              <a href={JUPITER_SWAP_URL} target="_blank" rel="noopener noreferrer" className="btn-outline text-xs py-2 px-4 shrink-0">
-                🔗 Open in Jupiter
-              </a>
+              <div className="flex items-center gap-3">
+                {priceData.price > 0 && (
+                  <span className="text-xs font-bold text-neon-green bg-neon-green/10 border border-neon-green/20 px-3 py-1.5 rounded-lg">
+                    1 FBiT = {fmtUSD(priceData.price)}
+                  </span>
+                )}
+                <a href={JUPITER_SWAP_URL} target="_blank" rel="noopener noreferrer" className="btn-outline text-xs py-2 px-4 shrink-0">
+                  🔗 Open in Jupiter
+                </a>
+              </div>
             </div>
 
             <div className="swap-terminal-wrap rounded-2xl overflow-hidden">

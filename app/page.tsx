@@ -8,11 +8,13 @@ import WalletModal from '@/components/WalletModal';
 import { HeroPromoBanner, StripPromoBanner, AdCardGrid } from '@/components/PromoAdBanners';
 import { loadAdminConfig, DEFAULT_ADMIN_CONFIG, loadVaultAdminConfig, DEFAULT_VAULT_ADMIN_CONFIG } from '@/lib/airdropConfig';
 import { useAPY } from '@/lib/useAPY';
+import { useFBiTPrice, fmtUSD } from '@/lib/useFBiTPrice';
 
 export default function HomePage() {
   const { walletAddress, totalPoints } = useAppStore();
   const [showWallet, setShowWallet] = useState(false);
   const { apy, loading: apyLoading } = useAPY();
+  const fbitPrice = useFBiTPrice();
 
   const [airdropCfg, setAirdropCfg] = useState(DEFAULT_ADMIN_CONFIG);
   const [vaultCfg,   setVaultCfg]   = useState(DEFAULT_VAULT_ADMIN_CONFIG);
@@ -112,10 +114,10 @@ export default function HomePage() {
       <section className="stats-bar">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { label: 'Max APY',          value: apyLoading ? '...' : `${apy}%`, icon: '📈' },
-            { label: 'Total Prize Pool', value: '$22,500',                       icon: '💰' },
-            { label: 'Network',          value: 'Solana',                        icon: '◎'  },
-            { label: 'Referral Levels',  value: '10 Levels',                     icon: '🤝' },
+            { label: 'Max APY',          value: apyLoading ? '...' : `${apy}%`,                                      icon: '📈' },
+            { label: 'FBiT Price',       value: fbitPrice.loading ? '...' : fbitPrice.price > 0 ? fmtUSD(fbitPrice.price) : '—', icon: '🪙' },
+            { label: 'Total Prize Pool', value: '$22,500',                                                            icon: '💰' },
+            { label: 'Referral Levels',  value: '10 Levels',                                                          icon: '🤝' },
           ].map(stat => (
             <div key={stat.label} className="text-center">
               <div className="text-2xl mb-1">{stat.icon}</div>
