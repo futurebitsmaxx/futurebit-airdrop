@@ -103,10 +103,10 @@ export const useAppStore = create<AppState>()(
           if (raw) vaultCfg = { ...vaultCfg, ...JSON.parse(raw) };
         } catch { /* use defaults */ }
         let tickets = Math.floor(amount / vaultCfg.minStake);
-        if (tickets > vaultCfg.maxTickets) tickets = vaultCfg.maxTickets;
         if (days >= 60) tickets = Math.floor(tickets * 1.5);
         const state = get();
         if (state.referralCount > 0) tickets += 2;
+        tickets = Math.min(vaultCfg.maxTickets, tickets);
         set({ stakingAmount: amount, stakingDays: days, ticketCount: tickets, hasEnteredGiveaway: true });
       },
 

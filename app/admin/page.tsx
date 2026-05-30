@@ -19,6 +19,7 @@ import {
 import {
   loadSocialConfig, saveSocialConfig, DEFAULT_SOCIAL_CONFIG, type SocialConfig,
 } from '@/lib/socialConfig';
+import { APY_OVERRIDE_KEY } from '@/lib/useAPY';
 
 
 function saveJSON(key: string, val: unknown) {
@@ -65,7 +66,8 @@ export default function AdminPage() {
   const [socialCfg,  setSocialCfg]  = useState<SocialConfig>(DEFAULT_SOCIAL_CONFIG);
 
   // Settings active section
-  const [settingsSection, setSettingsSection] = useState<'airdrop' | 'vault' | 'competition' | 'leaderboard'>('airdrop');
+  const [settingsSection, setSettingsSection] = useState<'airdrop' | 'vault' | 'competition' | 'leaderboard' | 'apy'>('airdrop');
+  const [apyOverride, setApyOverride] = useState<string>('');
 
   useEffect(() => {
     try {
@@ -79,6 +81,10 @@ export default function AdminPage() {
     setCompCfg(loadCompAdminConfig());
     setLbCfg(loadLeaderboardAdminConfig());
     setSocialCfg(loadSocialConfig());
+    try {
+      const raw = localStorage.getItem(APY_OVERRIDE_KEY);
+      if (raw) setApyOverride(JSON.parse(raw).toString());
+    } catch { /* ignore */ }
   }, []);
 
   // Fetch all server-side registrations after login (cookie sent automatically)
@@ -104,6 +110,11 @@ export default function AdminPage() {
     if (section === 'competition') { saveCompAdminConfig(compCfg); }
     if (section === 'leaderboard') { saveJSON(LB_ADMIN_CFG_KEY, lbCfg); }
     if (section === 'social')      { saveSocialConfig(socialCfg); }
+    if (section === 'apy') {
+      const val = Number(apyOverride);
+      if (apyOverride === '') { localStorage.removeItem(APY_OVERRIDE_KEY); }
+      else if (Number.isFinite(val) && val >= 1) { localStorage.setItem(APY_OVERRIDE_KEY, JSON.stringify(val)); }
+    }
     setSavedMsg(`✅ ${section} settings saved!`);
     setTimeout(() => setSavedMsg(''), 2500);
   }
@@ -1048,6 +1059,7 @@ export default function AdminPage() {
               { id: 'vault',       label: '🎰 Lucky Vault' },
               { id: 'competition', label: '🏆 Competition' },
               { id: 'leaderboard', label: '⚔️ Leaderboard' },
+              { id: 'apy',         label: '📈 APY'          },
             ] as { id: typeof settingsSection; label: string }[]).map(s => (
               <button key={s.id} type="button" onClick={() => setSettingsSection(s.id)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${settingsSection === s.id ? 'bg-neon-green/20 text-neon-green border border-neon-green/30' : 'bg-white/5 text-gray-400 border border-white/10 hover:text-white'}`}>
@@ -1143,6 +1155,40 @@ export default function AdminPage() {
               <div className="flex gap-3">
                 <button type="button" onClick={() => handleSave('airdrop')} className="btn-primary">💾 Save Settings</button>
                 <button type="button" onClick={() => setAirdropCfg({ ...DEFAULT_ADMIN_CONFIG })} className="btn-outline text-sm px-4">↩ Reset</button>
+              </div>
+            </div>
+          )}
+
+          {/* APY settings */}
+          {settingsSection === 'apy' && (
+            <div className="stake-wallet-card space-y-4">
+              <h2 className="text-white font-bold text-lg">📈 APY Override</h2>
+              <p className="text-gray-500 text-xs">
+                Live APY is read automatically from the Solana staking program. Set an override here to show a specific value across the site (Home page, Stake page, Footer, Promo banners). Leave blank to use the live on-chain value.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-400 text-xs font-semibold mb-1">APY Override (%) — leave blank for live value</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number" min={1} max={9999} step={1}
+                      value={apyOverride}
+                      onChange={e => setApyOverride(e.target.value)}
+                      placeholder="e.g. 300"
+                      className="w-40 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-neon-green/40"
+                    />
+                    <span className="text-gray-400 text-sm">
+                      {apyOverride ? <span className="text-neon-green font-bold">{apyOverride}% APY shown</span> : <span className="text-gray-500">Live from Solana</span>}
+                    </span>
+                  </div>
+                  <p className="text-gray-600 text-xs mt-1.5">
+                    Check current APY on <a href="https://stake.futurebit.in" target="_blank" rel="noopener noreferrer" className="text-neon-green underline">stake.futurebit.in</a> and enter it here.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => handleSave('apy')} className="btn-primary">💾 Save APY</button>
+                <button type="button" onClick={() => { setApyOverride(''); localStorage.removeItem(APY_OVERRIDE_KEY); setSavedMsg('✅ APY override cleared — using live value'); setTimeout(() => setSavedMsg(''), 2500); }} className="btn-outline text-sm px-4">↩ Clear Override</button>
               </div>
             </div>
           )}

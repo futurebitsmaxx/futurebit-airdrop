@@ -393,7 +393,7 @@ export default function SwapPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   { step: '1', title: 'Connect Phantom Wallet', desc: 'Click "Connect Wallet" at the top and select Phantom.' },
-                  { step: '2', title: 'Enter SOL or USDC',      desc: 'Enter the amount of FBiT you want — Jupiter finds the best rate.' },
+                  { step: '2', title: 'Enter Amount',            desc: 'Enter how much SOL you want to spend — Jupiter finds the best rate.' },
                   { step: '3', title: 'Preview the Route',      desc: 'Jupiter automatically selects the best swap route — check slippage.' },
                   { step: '4', title: 'Confirm the Swap',       desc: 'Approve the transaction in your wallet — FBiT arrives in seconds!' },
                 ].map(s => (

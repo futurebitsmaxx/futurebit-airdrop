@@ -26,10 +26,10 @@ export default function StakingPage() {
   }, []);
 
   const calcTickets = (a: number, d: number): number => {
-    let t = Math.min(vaultCfg.maxTickets, Math.floor(a / vaultCfg.minStake));
+    let t = Math.floor(a / vaultCfg.minStake);
     if (d >= 60) t = Math.floor(t * 1.5);
     if (referralCount > 0) t += 2;
-    return t;
+    return Math.min(vaultCfg.maxTickets, t);
   };
 
   const previewTickets = () => calcTickets(parseFloat(amount) || 0, days);
