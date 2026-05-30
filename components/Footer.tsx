@@ -1,7 +1,26 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { loadSocialConfig, DEFAULT_SOCIAL_CONFIG, type SocialConfig } from '@/lib/socialConfig';
 
 export default function Footer() {
+  const [social, setSocial] = useState<SocialConfig>(DEFAULT_SOCIAL_CONFIG);
+
+  useEffect(() => {
+    setSocial(loadSocialConfig());
+  }, []);
+
+  const communityLinks = [
+    { label: 'Telegram',     href: social.telegram,  icon: '✈️' },
+    { label: 'X (Twitter)',  href: social.twitter,   icon: '𝕏'  },
+    { label: 'Discord',      href: social.discord,   icon: '💬' },
+    { label: 'Instagram',    href: social.instagram, icon: '📸' },
+    { label: 'YouTube',      href: social.youtube,   icon: '▶️' },
+    { label: 'Facebook',     href: social.facebook,  icon: '👥' },
+  ].filter(l => l.href);
+
   return (
     <footer className="border-t border-white/5 mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
@@ -45,22 +64,24 @@ export default function Footer() {
                   target="_blank" rel="noopener noreferrer"
                   className="hover:text-neon-green transition-colors">Solscan ↗</a>
               </li>
-              <li>
-                <a href="https://stake.futurebit.in"
-                  target="_blank" rel="noopener noreferrer"
-                  className="hover:text-neon-green transition-colors">stake.futurebit.in ↗</a>
-              </li>
             </ul>
           </div>
 
-          {/* Community */}
+          {/* Community — admin se set hota hai */}
           <div>
             <h4 className="text-sm font-semibold text-gray-300 mb-3">Community</h4>
             <ul className="space-y-2 text-sm text-gray-500">
-              <li><a href="https://t.me/futurebitstaking" target="_blank" rel="noopener noreferrer" className="hover:text-neon-green transition-colors">Telegram</a></li>
-              <li><a href="https://twitter.com/FutureBitOfficial" target="_blank" rel="noopener noreferrer" className="hover:text-neon-green transition-colors">X (Twitter)</a></li>
-              <li><a href="https://discord.gg/futurebit" target="_blank" rel="noopener noreferrer" className="hover:text-neon-green transition-colors">Discord</a></li>
-              <li><a href="https://instagram.com/futurebitstaking" target="_blank" rel="noopener noreferrer" className="hover:text-neon-green transition-colors">Instagram</a></li>
+              {communityLinks.map(l => (
+                <li key={l.label}>
+                  <a href={l.href} target="_blank" rel="noopener noreferrer"
+                    className="hover:text-neon-green transition-colors flex items-center gap-1.5">
+                    <span className="text-xs">{l.icon}</span> {l.label}
+                  </a>
+                </li>
+              ))}
+              {communityLinks.length === 0 && (
+                <li className="text-gray-600 text-xs italic">No links configured</li>
+              )}
             </ul>
           </div>
         </div>

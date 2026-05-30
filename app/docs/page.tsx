@@ -242,7 +242,7 @@ export default function DocsPage() {
         <section id="swap" className="mb-8">
           <div className="p-6 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
             <h2 className="text-xl font-bold text-white mb-2">🪐 Swap Guide</h2>
-            <p className="text-gray-500 text-sm mb-5">Buy and sell FBiT on Jupiter DEX — Solana's #1 aggregator</p>
+            <p className="text-gray-500 text-sm mb-5">Buy and sell FBiT on Jupiter DEX — Solana #1 aggregator</p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
               {[

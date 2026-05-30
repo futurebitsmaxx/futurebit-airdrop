@@ -16,13 +16,16 @@ import {
   loadLeaderboardAdminConfig, DEFAULT_LB_ADMIN_CONFIG, type LeaderboardAdminConfig,
   LB_ADMIN_CFG_KEY,
 } from '@/lib/store';
+import {
+  loadSocialConfig, saveSocialConfig, DEFAULT_SOCIAL_CONFIG, type SocialConfig,
+} from '@/lib/socialConfig';
 
 
 function saveJSON(key: string, val: unknown) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* ignore */ }
 }
 
-type TabId = 'overview' | 'registrations' | 'vault' | 'competition' | 'leaderboard' | 'distribute' | 'settings' | 'setup' | 'threats';
+type TabId = 'overview' | 'registrations' | 'vault' | 'competition' | 'leaderboard' | 'distribute' | 'settings' | 'social' | 'setup' | 'threats';
 interface ThreatEntry { ip: string; score: number; blocked: boolean; requests: number; }
 
 export default function AdminPage() {
@@ -59,6 +62,7 @@ export default function AdminPage() {
   const [vaultCfg,   setVaultCfg]   = useState<LuckyVaultAdminConfig>(DEFAULT_VAULT_ADMIN_CONFIG);
   const [compCfg,    setCompCfg]    = useState<CompAdminConfig>(DEFAULT_COMP_ADMIN_CONFIG);
   const [lbCfg,      setLbCfg]      = useState<LeaderboardAdminConfig>(DEFAULT_LB_ADMIN_CONFIG);
+  const [socialCfg,  setSocialCfg]  = useState<SocialConfig>(DEFAULT_SOCIAL_CONFIG);
 
   // Settings active section
   const [settingsSection, setSettingsSection] = useState<'airdrop' | 'vault' | 'competition' | 'leaderboard'>('airdrop');
@@ -74,6 +78,7 @@ export default function AdminPage() {
     setVaultCfg(loadVaultAdminConfig());
     setCompCfg(loadCompAdminConfig());
     setLbCfg(loadLeaderboardAdminConfig());
+    setSocialCfg(loadSocialConfig());
   }, []);
 
   // Fetch all server-side registrations after login (cookie sent automatically)
@@ -98,6 +103,7 @@ export default function AdminPage() {
     if (section === 'vault')       { saveVaultAdminConfig(vaultCfg); }
     if (section === 'competition') { saveCompAdminConfig(compCfg); }
     if (section === 'leaderboard') { saveJSON(LB_ADMIN_CFG_KEY, lbCfg); }
+    if (section === 'social')      { saveSocialConfig(socialCfg); }
     setSavedMsg(`✅ ${section} settings saved!`);
     setTimeout(() => setSavedMsg(''), 2500);
   }
@@ -285,6 +291,7 @@ export default function AdminPage() {
     { id: 'leaderboard',    label: '⚔️ Leaderboard'   },
     { id: 'distribute',     label: '🚀 Distribution'  },
     { id: 'settings',       label: '⚙️ Settings'      },
+    { id: 'social',         label: '🔗 Social Links'  },
     { id: 'setup',          label: '🔌 Setup'         },
     { id: 'threats',        label: '🛡️ Threats'       },
   ];
@@ -1253,6 +1260,90 @@ export default function AdminPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ══ SOCIAL LINKS ══ */}
+      {activeTab === 'social' && (
+        <div className="space-y-5">
+          <div className="stake-wallet-card">
+            <h2 className="text-white font-bold text-lg mb-1">🔗 Social Media Links</h2>
+            <p className="text-gray-500 text-xs mb-6">
+              Yahan URL update karo — Footer mein automatically reflect ho jayega. Khali chhod do jo platform nahi hai.
+            </p>
+
+            <div className="space-y-4">
+              {([
+                { key: 'telegram',  label: 'Telegram',    icon: '✈️', placeholder: 'https://t.me/yourgroup'           },
+                { key: 'twitter',   label: 'X (Twitter)', icon: '𝕏',  placeholder: 'https://twitter.com/yourhandle'   },
+                { key: 'discord',   label: 'Discord',     icon: '💬', placeholder: 'https://discord.gg/yourserver'    },
+                { key: 'instagram', label: 'Instagram',   icon: '📸', placeholder: 'https://instagram.com/yourhandle' },
+                { key: 'youtube',   label: 'YouTube',     icon: '▶️', placeholder: 'https://youtube.com/@yourchannel' },
+                { key: 'facebook',  label: 'Facebook',    icon: '👥', placeholder: 'https://facebook.com/yourpage'   },
+              ] as { key: keyof SocialConfig; label: string; icon: string; placeholder: string }[]).map(s => (
+                <div key={s.key} className="flex items-center gap-3">
+                  <span className="text-xl w-7 text-center shrink-0">{s.icon}</span>
+                  <div className="flex-1">
+                    <label className="block text-gray-400 text-xs font-semibold mb-1">{s.label}</label>
+                    <input
+                      type="url"
+                      value={socialCfg[s.key]}
+                      onChange={e => setSocialCfg(p => ({ ...p, [s.key]: e.target.value }))}
+                      placeholder={s.placeholder}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-neon-green/40 font-mono placeholder-gray-700"
+                    />
+                  </div>
+                  {/* Live status indicator */}
+                  <span className={`text-xs shrink-0 mt-4 ${socialCfg[s.key] ? 'text-neon-green' : 'text-gray-600'}`}>
+                    {socialCfg[s.key] ? '✅' : '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button type="button" onClick={() => handleSave('social')} className="btn-primary">
+                💾 Save Social Links
+              </button>
+              <button type="button"
+                onClick={() => setSocialCfg({ ...DEFAULT_SOCIAL_CONFIG })}
+                className="btn-outline text-sm px-4">
+                ↩ Reset
+              </button>
+            </div>
+            {savedMsg.includes('social') && <p className="text-neon-green text-sm mt-3">{savedMsg}</p>}
+          </div>
+
+          {/* Live preview */}
+          <div className="stake-wallet-card">
+            <h3 className="text-white font-bold mb-4">👁 Footer Preview</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {([
+                { key: 'telegram',  label: 'Telegram',    icon: '✈️' },
+                { key: 'twitter',   label: 'X (Twitter)', icon: '𝕏'  },
+                { key: 'discord',   label: 'Discord',     icon: '💬' },
+                { key: 'instagram', label: 'Instagram',   icon: '📸' },
+                { key: 'youtube',   label: 'YouTube',     icon: '▶️' },
+                { key: 'facebook',  label: 'Facebook',    icon: '👥' },
+              ] as { key: keyof SocialConfig; label: string; icon: string }[]).map(s => (
+                <div key={s.key} className={`rounded-xl p-3 border text-sm flex items-center gap-2 ${socialCfg[s.key] ? 'border-neon-green/20 bg-neon-green/5' : 'border-white/5 bg-white/2 opacity-40'}`}>
+                  <span>{s.icon}</span>
+                  <div className="min-w-0">
+                    <p className={`font-medium text-xs ${socialCfg[s.key] ? 'text-white' : 'text-gray-600'}`}>{s.label}</p>
+                    {socialCfg[s.key] ? (
+                      <a href={socialCfg[s.key]} target="_blank" rel="noopener noreferrer"
+                        className="text-neon-green text-xs underline truncate block max-w-[140px]">
+                        {socialCfg[s.key].replace('https://', '')}
+                      </a>
+                    ) : (
+                      <p className="text-gray-600 text-xs">Not set</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-gray-600 text-xs mt-4">⚠️ Save karne ke baad site refresh karo — Footer mein dikh jayega.</p>
+          </div>
         </div>
       )}
 
