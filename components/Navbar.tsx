@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -31,6 +31,11 @@ export default function Navbar() {
   const { walletAddress, connectedChain, disconnectWallet } = useAppStore();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [mobileOpen,      setMobileOpen]      = useState(false);
+
+  // Close mobile menu automatically whenever the route changes
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   const shortAddress = walletAddress
     ? `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`
@@ -96,33 +101,55 @@ export default function Navbar() {
             <button
               type="button"
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-              onClick={() => setMobileOpen(!mobileOpen)}
+              onClick={() => setMobileOpen(prev => !prev)}
               className="md:hidden text-gray-400 hover:text-white p-2"
             >
               <div className="space-y-1" aria-hidden="true">
-                <span className={`block w-5 h-0.5 bg-current transition-all ${mobileOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
-                <span className={`block w-5 h-0.5 bg-current transition-all ${mobileOpen ? 'opacity-0' : ''}`} />
-                <span className={`block w-5 h-0.5 bg-current transition-all ${mobileOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
+                <span className={`block w-5 h-0.5 bg-current transition-all duration-300 ${mobileOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
+                <span className={`block w-5 h-0.5 bg-current transition-all duration-300 ${mobileOpen ? 'opacity-0' : ''}`} />
+                <span className={`block w-5 h-0.5 bg-current transition-all duration-300 ${mobileOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
               </div>
             </button>
           </div>
         </div>
 
-        {/* Mobile Nav */}
+        {/* Mobile Nav — NO onClick needed; pathname useEffect closes it */}
         {mobileOpen && (
-          <div className="md:hidden border-t border-white/5 px-4 py-3 space-y-1">
+          <div className="md:hidden border-t border-white/5 bg-[#0a0a0a] px-4 py-3 space-y-1 shadow-2xl">
             {navLinks.map(link => (
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={() => setMobileOpen(false)}
-                className={`block px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  pathname === link.href ? 'text-neon-green bg-white/5' : 'text-gray-400 hover:text-white'
+                className={`block px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  pathname === link.href
+                    ? 'text-neon-green bg-white/8 border border-neon-green/20'
+                    : 'text-gray-300 hover:text-white hover:bg-white/5'
                 }`}
               >
                 {link.label}
               </Link>
             ))}
+
+            {/* Wallet section in mobile menu */}
+            <div className="pt-2 mt-2 border-t border-white/5">
+              {walletAddress ? (
+                <div className="flex items-center justify-between px-4 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-neon-green animate-pulse-neon" />
+                    <span className="text-gray-300 text-xs font-mono">{shortAddress}</span>
+                  </div>
+                  <button type="button" onClick={disconnectWallet}
+                    className="text-xs text-red-400 hover:text-red-300 transition-colors">
+                    Disconnect
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setShowWalletModal(true)}
+                  className="w-full btn-primary text-sm py-2.5 mt-1">
+                  Connect Wallet
+                </button>
+              )}
+            </div>
           </div>
         )}
       </nav>
