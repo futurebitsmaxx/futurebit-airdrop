@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { REFERRAL_LEVELS, TEAM_TIERS, SOLANA } from '@/lib/contractConfig';
 import { useAppStore } from '@/lib/store';
+import { useAPY } from '@/lib/useAPY';
 import { fetchSolBalance, fetchFBiTBalance, fetchSolanaStakingInfo, type SolanaStakingInfo } from '@/lib/solanaService';
 import WalletModal from '@/components/WalletModal';
 
@@ -18,6 +19,7 @@ function StakePageInner() {
   const refParam = params.get('ref') ?? '';
 
   const { walletAddress, disconnectWallet } = useAppStore();
+  const { apy } = useAPY();
   const [showWallet,  setShowWallet]  = useState(false);
   const [loading,      setLoading]      = useState(false);
   const [tab,          setTab]          = useState<Tab>('stake');
@@ -213,7 +215,7 @@ function StakePageInner() {
                   <div className="mt-4 grid grid-cols-3 gap-3 text-center text-xs text-gray-500">
                     <div className="stake-info-chip">Lock Period<br /><span className="text-white font-bold text-sm">30 Days</span></div>
                     <div className="stake-info-chip">Claim Every<br /><span className="text-white font-bold text-sm">6 Hours</span></div>
-                    <div className="stake-info-chip">Max APY<br /><span className="text-neon-green font-bold text-sm">300%</span></div>
+                    <div className="stake-info-chip">Max APY<br /><span className="text-neon-green font-bold text-sm">{apy}%</span></div>
                   </div>
                 </div>
 
@@ -304,9 +306,9 @@ function StakePageInner() {
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {[
-                          { label: 'WhatsApp', icon: '💬', href: `https://wa.me/?text=Stake on FutureBit and earn 300% APY! ${referralLink}` },
-                          { label: 'Telegram', icon: '✈️', href: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=FutureBit Staking — 300% APY!` },
-                          { label: 'Twitter/X', icon: '𝕏',  href: `https://twitter.com/intent/tweet?text=Stake on FutureBit — 300% APY!&url=${encodeURIComponent(referralLink)}` },
+                          { label: 'WhatsApp', icon: '💬', href: `https://wa.me/?text=Stake on FutureBit and earn ${apy}% APY! ${referralLink}` },
+                          { label: 'Telegram', icon: '✈️', href: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=FutureBit Staking — ${apy}% APY!` },
+                          { label: 'Twitter/X', icon: '𝕏',  href: `https://twitter.com/intent/tweet?text=Stake on FutureBit — ${apy}% APY!&url=${encodeURIComponent(referralLink)}` },
                         ].map(s => (
                           <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" className="stake-share-btn">
                             {s.icon} Share on {s.label}

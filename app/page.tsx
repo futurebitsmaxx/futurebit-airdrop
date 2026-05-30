@@ -7,17 +7,12 @@ import { loadLeaderboardAdminConfig, DEFAULT_LB_ADMIN_CONFIG } from '@/lib/store
 import WalletModal from '@/components/WalletModal';
 import { HeroPromoBanner, StripPromoBanner, AdCardGrid } from '@/components/PromoAdBanners';
 import { loadAdminConfig, DEFAULT_ADMIN_CONFIG, loadVaultAdminConfig, DEFAULT_VAULT_ADMIN_CONFIG } from '@/lib/airdropConfig';
-
-const stats = [
-  { label: 'Max APY',          value: '300%',       icon: '📈' },
-  { label: 'Total Prize Pool', value: '$22,500',     icon: '💰' },
-  { label: 'Network',          value: 'Solana',      icon: '◎'  },
-  { label: 'Referral Levels',  value: '10 Levels',   icon: '🤝' },
-];
+import { useAPY } from '@/lib/useAPY';
 
 export default function HomePage() {
   const { walletAddress, totalPoints } = useAppStore();
   const [showWallet, setShowWallet] = useState(false);
+  const { apy, loading: apyLoading } = useAPY();
 
   const [airdropCfg, setAirdropCfg] = useState(DEFAULT_ADMIN_CONFIG);
   const [vaultCfg,   setVaultCfg]   = useState(DEFAULT_VAULT_ADMIN_CONFIG);
@@ -80,7 +75,7 @@ export default function HomePage() {
 
         <p className="text-gray-400 text-lg sm:text-xl max-w-2xl mx-auto mb-4">
           Solana DeFi staking with{' '}
-          <span className="text-neon-green font-bold">up to 300% APY</span>, a 10-level
+          <span className="text-neon-green font-bold">up to {apyLoading ? '...' : `${apy}%`} APY</span>, a 10-level
           referral system, and massive airdrop rewards.
         </p>
         <p className="text-gray-500 text-base mb-10">Solana ✦ 100% On-Chain ✦ FBiT Token</p>
@@ -116,7 +111,12 @@ export default function HomePage() {
       {/* Stats Bar */}
       <section className="stats-bar">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map(stat => (
+          {[
+            { label: 'Max APY',          value: apyLoading ? '...' : `${apy}%`, icon: '📈' },
+            { label: 'Total Prize Pool', value: '$22,500',                       icon: '💰' },
+            { label: 'Network',          value: 'Solana',                        icon: '◎'  },
+            { label: 'Referral Levels',  value: '10 Levels',                     icon: '🤝' },
+          ].map(stat => (
             <div key={stat.label} className="text-center">
               <div className="text-2xl mb-1">{stat.icon}</div>
               <div className="text-xl font-bold text-neon-green">{stat.value}</div>

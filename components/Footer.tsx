@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { loadSocialConfig, DEFAULT_SOCIAL_CONFIG, type SocialConfig } from '@/lib/socialConfig';
+import { useAPY } from '@/lib/useAPY';
 
 export default function Footer() {
   const [social, setSocial] = useState<SocialConfig>(DEFAULT_SOCIAL_CONFIG);
+  const { apy } = useAPY();
 
   useEffect(() => {
     setSocial(loadSocialConfig());
@@ -33,7 +35,7 @@ export default function Footer() {
               <span className="font-bold">Future<span className="text-neon-green">Bit</span></span>
             </div>
             <p className="text-gray-500 text-sm leading-relaxed">
-              Solana DeFi staking platform — up to 300% APY, 10-level referrals, and FBiT token trading on Jupiter.
+              Solana DeFi staking platform — up to {apy}% APY, 10-level referrals, and FBiT token trading on Jupiter.
             </p>
           </div>
 

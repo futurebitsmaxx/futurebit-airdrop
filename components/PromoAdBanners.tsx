@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useAPY } from '@/lib/useAPY';
 
 interface PromoBannerProps {
   variant?: 'hero' | 'inline' | 'floating' | 'strip';
@@ -9,6 +10,7 @@ interface PromoBannerProps {
 
 /* ── Hero-size promo ad (homepage) ── */
 export function HeroPromoBanner() {
+  const { apy } = useAPY();
   return (
     <div className="promo-hero-banner">
       <div className="promo-hero-glow" />
@@ -38,7 +40,7 @@ export function HeroPromoBanner() {
           {/* Right — stats chips */}
           <div className="grid grid-cols-2 gap-4">
             {[
-              { icon: '📈', label: 'Max APY', val: '300%', sub: 'On Polygon & Solana' },
+              { icon: '📈', label: 'Max APY', val: `${apy}%`, sub: 'On Polygon & Solana' },
               { icon: '💸', label: 'Prize Pool', val: '$22,500', sub: 'Across all campaigns' },
               { icon: '🪐', label: 'On Jupiter', val: 'LIVE', sub: 'Best swap rates' },
               { icon: '🤝', label: 'Referral Levels', val: '10 Deep', sub: 'Passive income network' },
@@ -140,6 +142,7 @@ export function FloatingAdCard() {
 
 /* ── Ad grid: 3 small banner cards ── */
 export function AdCardGrid() {
+  const { apy } = useAPY();
   const ads = [
     {
       id: 'airdrop',
@@ -162,7 +165,7 @@ export function AdCardGrid() {
     {
       id: 'stake',
       icon: '💎',
-      title: '300% APY Staking',
+      title: `${apy}% APY Staking`,
       body: 'Stake $100+ and enter the $2,000 grand prize monthly lucky draw!',
       cta: 'Stake & Win',
       href: '/staking',
