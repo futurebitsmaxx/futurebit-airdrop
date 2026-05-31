@@ -10,6 +10,7 @@ import {
   TOKEN_INFO,
 } from '@/lib/jupiterConfig';
 import { StripPromoBanner } from '@/components/PromoAdBanners';
+import AdBanner from '@/components/AdBanner';
 import { useFBiTPrice, fmtUSD } from '@/lib/useFBiTPrice';
 
 const JupiterTerminal = dynamic(() => import('@/components/JupiterTerminal'), {
@@ -38,11 +39,13 @@ export default function SwapPage() {
   const priceData = useFBiTPrice(30_000);
 
   // Track last-updated timestamp whenever price changes
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!priceData.loading && priceData.price > 0) {
       setLastUpdated(new Date());
     }
   }, [priceData.price, priceData.loading]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const spreadPct = priceData.buyPrice > 0
     ? ((priceData.buyPrice - priceData.sellPrice) / priceData.buyPrice) * 100
@@ -281,6 +284,7 @@ export default function SwapPage() {
         <div className="mt-8">
           <StripPromoBanner variant="inline" />
         </div>
+        <AdBanner page="swap" className="mt-6" />
       </div>
     </div>
   );

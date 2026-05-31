@@ -4,6 +4,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PromoBanner from '@/components/PromoBanner';
 import { FloatingAdCard } from '@/components/PromoAdBanners';
+import AdcashAutoTag from '@/components/AdcashAutoTag';
 
 const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://futurebit.io';
 
@@ -108,6 +109,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </main>
         <Footer />
         <FloatingAdCard />
+        <AdcashAutoTag />
       </body>
     </html>
   );

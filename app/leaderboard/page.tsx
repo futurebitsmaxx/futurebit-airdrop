@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { LEADERBOARD_DATA, loadLeaderboardAdminConfig, DEFAULT_LB_ADMIN_CONFIG, type LeaderboardAdminConfig } from '@/lib/store';
+import AdBanner from '@/components/AdBanner';
 
 function useCountdown() {
   const getTimeLeft = () => {
@@ -40,9 +41,11 @@ export default function LeaderboardPage() {
   const time = useCountdown();
   const [cfg, setCfg] = useState<LeaderboardAdminConfig>(DEFAULT_LB_ADMIN_CONFIG);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setCfg(loadLeaderboardAdminConfig());
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Apply admin prizes to leaderboard entries
   const entries = LEADERBOARD_DATA.map((e, i) => ({
@@ -195,6 +198,8 @@ export default function LeaderboardPage() {
         </p>
         <a href="/airdrop" className="btn-primary inline-block">Get Your Referral Link →</a>
       </div>
+
+      <AdBanner page="leaderboard" className="mt-8" />
     </div>
   );
 }

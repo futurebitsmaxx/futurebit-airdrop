@@ -57,18 +57,16 @@ export default function JupiterTerminal({ mode = 'integrated' }: Props) {
   }
 
   return (
-    <div className="relative">
+    <div className="jupiter-terminal-root">
+      {/* Loading overlay — sits on top, jupiter container stays visible underneath */}
       {loading && (
-        <div className="jupiter-loading-state jupiter-terminal-loading-height">
+        <div className="jupiter-loading-overlay">
           <div className="jupiter-spinner" />
-          <p className="text-gray-400 text-sm mt-4">Loading Jupiter Plugin...</p>
+          <p className="text-gray-400 text-sm mt-4">Loading Jupiter...</p>
         </div>
       )}
-      {/* Jupiter mounts into this div — keep it in DOM at all times */}
-      <div
-        id="jupiter-plugin-container"
-        className={`jupiter-terminal-wrap${loading ? ' jupiter-terminal-hidden' : ''}`}
-      />
+      {/* Jupiter mounts into this div — MUST remain in DOM and visible at all times */}
+      <div id="jupiter-plugin-container" className="jupiter-terminal-wrap" />
     </div>
   );
 }

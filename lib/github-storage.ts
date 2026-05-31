@@ -15,7 +15,7 @@ export function isGitHubConfigured(): boolean {
 }
 
 // ── Path traversal guard ──────────────────────────────────────────────────────
-const ALLOWED_FILES = new Set(['registrations.json', 'comp-registrations.json', 'vault-registrations.json']);
+const ALLOWED_FILES = new Set(['registrations.json', 'comp-registrations.json', 'vault-registrations.json', 'site-config.json']);
 
 function safeFilePath(filePath: string): string {
   if (!ALLOWED_FILES.has(filePath)) {
@@ -106,6 +106,49 @@ function decodeGHContent(file: GHFile): unknown[] {
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch { return []; }
+}
+
+// ── Single-object helpers (for site config) ───────────────────────────────────
+
+function localReadObject(filePath: string): Record<string, unknown> {
+  try {
+    const p = localPath(filePath);
+    if (!fs.existsSync(p)) return {};
+    const raw = fs.readFileSync(p, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+  } catch { return {}; }
+}
+
+function localWriteObject(filePath: string, data: Record<string, unknown>): void {
+  const p = localPath(filePath);
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+export async function readObject(filePath: string): Promise<Record<string, unknown>> {
+  safeFilePath(filePath);
+  if (isGitHubConfigured()) {
+    const file = await ghGet(filePath);
+    if (!file) return {};
+    try {
+      const b64 = file.content.replace(/\n/g, '');
+      const raw = Buffer.from(b64, 'base64').toString('utf-8');
+      const parsed = JSON.parse(raw);
+      return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+    } catch { return {}; }
+  }
+  return localReadObject(filePath);
+}
+
+export async function writeObject(filePath: string, data: Record<string, unknown>): Promise<void> {
+  safeFilePath(filePath);
+  if (isGitHubConfigured()) {
+    const file = await ghGet(filePath);
+    await ghPut(filePath, JSON.stringify(data, null, 2), file?.sha);
+    return;
+  }
+  localWriteObject(filePath, data);
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────

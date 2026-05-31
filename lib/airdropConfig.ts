@@ -121,8 +121,6 @@ export const AIRDROP_CONFIG = {
   // Option B: Google Sheets Apps Script Web App URL
   // Option C: leave empty → registrations saved to localStorage only
   webhookUrl: process.env.NEXT_PUBLIC_AIRDROP_WEBHOOK ?? '',
-
-  adminPassword: process.env.NEXT_PUBLIC_ADMIN_PASS ?? 'futurebit2025',
 } as const;
 
 // ── Registration entry shape ──────────────────────────────────────────────────

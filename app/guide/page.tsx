@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import WalletModal from '@/components/WalletModal';
+import AdBanner from '@/components/AdBanner';
 import { useAppStore } from '@/lib/store';
 
 const steps = [
@@ -230,6 +231,9 @@ export default function GuidePage() {
           </div>
           <p className="text-gray-600 text-xs">Share both PDFs with friends — help others understand the platform!</p>
         </div>
+
+        {/* ── Ad Banner ── */}
+        <AdBanner page="guide" className="mb-10" />
 
         {/* ── Progress bar ── */}
         <div className="mb-12 p-4 rounded-2xl overflow-x-auto" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>

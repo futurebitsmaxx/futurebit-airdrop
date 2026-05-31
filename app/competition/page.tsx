@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import WalletModal from '@/components/WalletModal';
+import AdBanner from '@/components/AdBanner';
 import {
   COMP_CONFIG, PRIZE_TIERS, COMP_RULES,
-  saveCompReg, loadCompReg, submitCompReg, genCompTxId,
+  loadCompReg, submitCompReg, genCompTxId,
   loadCompAdminConfig, DEFAULT_COMP_ADMIN_CONFIG, type CompAdminConfig, type CompRegistration,
 } from '@/lib/competitionConfig';
 
@@ -41,10 +42,12 @@ export default function CompetitionPage() {
   const [copiedLink,  setCopiedLink]  = useState(false);
   const [cfg,         setCfg]         = useState<CompAdminConfig>(DEFAULT_COMP_ADMIN_CONFIG);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setReg(loadCompReg());
     setCfg(loadCompAdminConfig());
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Use admin config dates; fall back to COMP_CONFIG constants
   const startIso = cfg.startDate ? cfg.startDate + 'T00:00:00Z' : COMP_CONFIG.startDate;
@@ -231,8 +234,19 @@ export default function CompetitionPage() {
             {/* Empty state */}
             <div className="stake-wallet-card text-center py-12">
               <div className="text-5xl mb-4">🏁</div>
-              <p className="text-white font-bold text-lg mb-2">Competition hasn&apos;t started yet</p>
-              <p className="text-gray-400 text-sm mb-2">Leaderboard will go live on {cfg.startDate}</p>
+              {started ? (
+                <>
+                  <p className="text-white font-bold text-lg mb-2">No trades recorded yet</p>
+                  <p className="text-gray-400 text-sm mb-2">Competition is live — trade SOL/FBiT on Jupiter to appear here</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-white font-bold text-lg mb-2">Competition starts on {new Date(startIso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                  <p className="text-gray-400 text-sm mb-2">
+                    Starts in {countdown.days > 0 ? `${countdown.days}d ` : ''}{String(countdown.hours).padStart(2,'0')}h {String(countdown.minutes).padStart(2,'0')}m
+                  </p>
+                </>
+              )}
               <p className="text-gray-600 text-xs">
                 Trade SOL/FBiT on Jupiter during the competition period to appear here.
               </p>
@@ -393,6 +407,10 @@ export default function CompetitionPage() {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-8">
+        <AdBanner page="competition" />
       </div>
 
       {showWallet && <WalletModal onClose={() => setShowWallet(false)} />}

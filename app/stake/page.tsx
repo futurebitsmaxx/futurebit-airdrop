@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { REFERRAL_LEVELS, TEAM_TIERS, SOLANA } from '@/lib/contractConfig';
 import { useAppStore } from '@/lib/store';
 import { useAPY } from '@/lib/useAPY';
 import { fetchSolBalance, fetchFBiTBalance, fetchSolanaStakingInfo, type SolanaStakingInfo } from '@/lib/solanaService';
 import WalletModal from '@/components/WalletModal';
+import AdBanner from '@/components/AdBanner';
 
 type Tab = 'stake' | 'referral' | 'team';
 
@@ -28,20 +29,19 @@ function StakePageInner() {
   const [fbitBalance,  setFbitBalance]  = useState('0.000000');
   const [stakingInfo,  setStakingInfo]  = useState<SolanaStakingInfo | null>(null);
 
-  const tierProgressRef = useRef<HTMLDivElement>(null);
-
   const referralLink = walletAddress
     ? `https://stake.futurebit.in/?ref=${walletAddress}`
     : null;
 
+  // Derive display values — no setState needed when wallet is absent
+  const displaySolBalance   = walletAddress ? solBalance   : '0.0000';
+  const displayFbitBalance  = walletAddress ? fbitBalance  : '0.000000';
+  const displayStakingInfo  = walletAddress ? stakingInfo  : null;
+
   // Fetch Solana balances + staking info when wallet connects / changes
   useEffect(() => {
-    if (!walletAddress) {
-      setSolBalance('0.0000');
-      setFbitBalance('0.000000');
-      setStakingInfo(null);
-      return;
-    }
+    if (!walletAddress) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     Promise.all([
       fetchSolBalance(walletAddress),
@@ -56,11 +56,6 @@ function StakePageInner() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [walletAddress]);
-
-  // Keep tier progress bar width via CSS custom property (no inline style)
-  useEffect(() => {
-    tierProgressRef.current?.style.setProperty('--pw', '0%');
-  }, []);
 
   function copyRef() {
     if (!referralLink) return;
@@ -89,8 +84,18 @@ function StakePageInner() {
   return (
     <div className="min-h-screen">
 
+      {/* ── RISK DISCLAIMER ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+        <div className="bg-yellow-500/8 border border-yellow-500/20 rounded-xl px-4 py-3 flex items-start gap-3">
+          <span className="text-yellow-400 shrink-0 mt-0.5">⚠️</span>
+          <p className="text-yellow-400/80 text-xs leading-relaxed">
+            <strong className="text-yellow-400">Risk Notice:</strong> This smart contract has not been independently audited. DeFi staking involves risk — only stake what you can afford to lose. Always verify the contract address before transacting.
+          </p>
+        </div>
+      </div>
+
       {/* ── HEADER ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 pb-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-6">
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
@@ -142,11 +147,11 @@ function StakePageInner() {
                   <div className="grid grid-cols-2 gap-2">
                     <div className="stake-balance-chip">
                       <span className="text-gray-500 text-xs">SOL</span>
-                      <span className="text-neon-green font-bold">{loading ? '…' : solBalance}</span>
+                      <span className="text-neon-green font-bold">{loading ? '…' : displaySolBalance}</span>
                     </div>
                     <div className="stake-balance-chip">
                       <span className="text-gray-500 text-xs">FBiT</span>
-                      <span className="text-neon-green font-bold">{loading ? '…' : fbitBalance}</span>
+                      <span className="text-neon-green font-bold">{loading ? '…' : displayFbitBalance}</span>
                     </div>
                   </div>
                   <button type="button" onClick={refreshBalances} disabled={loading}
@@ -241,22 +246,22 @@ function StakePageInner() {
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                         <div className="stake-balance-chip">
                           <span className="text-gray-500 text-xs">SOL Balance</span>
-                          <span className="text-neon-green font-bold">{loading ? '…' : solBalance}</span>
+                          <span className="text-neon-green font-bold">{loading ? '…' : displaySolBalance}</span>
                         </div>
                         <div className="stake-balance-chip">
                           <span className="text-gray-500 text-xs">FBiT Balance</span>
-                          <span className="text-neon-green font-bold">{loading ? '…' : fbitBalance}</span>
+                          <span className="text-neon-green font-bold">{loading ? '…' : displayFbitBalance}</span>
                         </div>
                         <div className="stake-balance-chip">
                           <span className="text-gray-500 text-xs">Stake Positions</span>
                           <span className="text-neon-green font-bold">
-                            {loading ? '…' : (stakingInfo?.stakeCount ?? 0)}
+                            {loading ? '…' : (displayStakingInfo?.stakeCount ?? 0)}
                           </span>
                         </div>
                         <div className="stake-balance-chip">
                           <span className="text-gray-500 text-xs">Total Staked</span>
                           <span className="text-neon-green font-bold">
-                            {loading ? '…' : (stakingInfo?.totalStaked ?? '0')} FBiT
+                            {loading ? '…' : (displayStakingInfo?.totalStaked ?? '0')} FBiT
                           </span>
                         </div>
                       </div>
@@ -361,7 +366,7 @@ function StakePageInner() {
                   <p className="text-4xl mb-2">🏆</p>
                   <p className="text-white font-bold text-lg">Team Volume Bonus</p>
                   <p className="text-gray-400 text-sm mt-2 max-w-md mx-auto">
-                    Total staked amount across your 10-level network = "Team Volume".
+                    Total staked amount across your 10-level network = &quot;Team Volume&quot;.
                     Bigger team = bigger APY bonus — automatic on-chain!
                   </p>
                 </div>
@@ -374,7 +379,7 @@ function StakePageInner() {
                         <span className="text-xl">{tier.icon}</span>
                         <div className="flex-1 min-w-0 ml-3">
                           <span className="text-white font-bold text-sm">{tier.name}</span>
-                          <p className="text-gray-500 text-xs">Min: {tier.minTeamStaked.toLocaleString()} WFBIT</p>
+                          <p className="text-gray-500 text-xs">Min: {tier.minTeamStaked.toLocaleString()} FBiT</p>
                         </div>
                         <p className={`font-bold text-sm shrink-0 tier-color-${tier.tier}`}>
                           {tier.bonusPct}
@@ -403,6 +408,10 @@ function StakePageInner() {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-8">
+        <AdBanner page="stake" />
       </div>
 
       {showWallet && <WalletModal onClose={() => setShowWallet(false)} />}

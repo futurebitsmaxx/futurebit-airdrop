@@ -10,13 +10,14 @@ import WalletModal from './WalletModal';
 type Highlight = 'green' | 'orange' | 'purple' | undefined;
 
 const navLinks: { href: string; label: string; highlight?: Highlight }[] = [
-  { href: '/',            label: 'Home'        },
-  { href: '/guide',       label: '📖 Guide'    },
-  { href: '/stake',       label: '💎 Stake',   highlight: 'green'  },
-  { href: '/airdrop',     label: 'Airdrop 🎁'  },
-  { href: '/competition', label: '🏆 Trading', highlight: 'orange' },
-  { href: '/leaderboard', label: 'Leaderboard' },
-  { href: '/swap',        label: '🪐 Swap',    highlight: 'purple' },
+  { href: '/',             label: 'Home'            },
+  { href: '/guide',        label: '📖 Guide'        },
+  { href: '/stake',        label: '💎 Stake',       highlight: 'green'  },
+  { href: '/airdrop',      label: 'Airdrop 🎁'      },
+  { href: '/competition',  label: '🏆 Trading',     highlight: 'orange' },
+  { href: '/daily-tasks',  label: '⚡ Daily Tasks'  },
+  { href: '/leaderboard',  label: 'Leaderboard'    },
+  { href: '/swap',         label: '🪐 Swap',        highlight: 'purple' },
 ];
 
 function linkClass(highlight: Highlight, active: boolean): string {
@@ -32,7 +33,6 @@ export default function Navbar() {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [mobileOpen,      setMobileOpen]      = useState(false);
 
-  // Close mobile menu automatically whenever the route changes
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
@@ -62,12 +62,12 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden lg:flex items-center gap-0.5">
             {navLinks.map(link => (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
                   linkClass(link.highlight, pathname === link.href)
                 }`}
               >
@@ -92,8 +92,9 @@ export default function Navbar() {
               </div>
             ) : (
               <button type="button" onClick={() => setShowWalletModal(true)}
-                className="btn-primary text-sm py-2 px-4">
-                Connect Wallet
+                className="btn-primary text-sm py-2 px-3 lg:px-4">
+                <span className="sm:hidden">Connect</span>
+                <span className="hidden sm:inline">Connect Wallet</span>
               </button>
             )}
 
@@ -102,33 +103,35 @@ export default function Navbar() {
               type="button"
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
               onClick={() => setMobileOpen(prev => !prev)}
-              className="md:hidden text-gray-400 hover:text-white p-2"
+              className="text-white hover:text-neon-green p-2 rounded-lg hover:bg-white/10 transition-all"
             >
-              <div className="space-y-1" aria-hidden="true">
-                <span className={`block w-5 h-0.5 bg-current transition-all duration-300 ${mobileOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
-                <span className={`block w-5 h-0.5 bg-current transition-all duration-300 ${mobileOpen ? 'opacity-0' : ''}`} />
-                <span className={`block w-5 h-0.5 bg-current transition-all duration-300 ${mobileOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
+              <div className="space-y-[5px]" aria-hidden="true">
+                <span className={`block w-6 h-[2px] bg-current rounded-full transition-all duration-300 ${mobileOpen ? 'rotate-45 translate-y-[7px]' : ''}`} />
+                <span className={`block w-6 h-[2px] bg-current rounded-full transition-all duration-300 ${mobileOpen ? 'opacity-0' : ''}`} />
+                <span className={`block w-6 h-[2px] bg-current rounded-full transition-all duration-300 ${mobileOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
               </div>
             </button>
           </div>
         </div>
 
-        {/* Mobile Nav — NO onClick needed; pathname useEffect closes it */}
+        {/* Mobile/Tablet Nav dropdown */}
         {mobileOpen && (
-          <div className="md:hidden border-t border-white/5 bg-[#0a0a0a] px-4 py-3 space-y-1 shadow-2xl">
-            {navLinks.map(link => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`block px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                  pathname === link.href
-                    ? 'text-neon-green bg-white/8 border border-neon-green/20'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
+          <div className="border-t border-white/5 bg-[#0a0a0a] px-4 py-3 shadow-2xl max-h-[70vh] overflow-y-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1">
+              {navLinks.map(link => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                    pathname === link.href
+                      ? 'text-neon-green bg-white/8 border border-neon-green/20'
+                      : 'text-gray-300 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
 
             {/* Wallet section in mobile menu */}
             <div className="pt-2 mt-2 border-t border-white/5">

@@ -6,9 +6,11 @@ import { useAppStore } from '@/lib/store';
 import { loadLeaderboardAdminConfig, DEFAULT_LB_ADMIN_CONFIG } from '@/lib/store';
 import WalletModal from '@/components/WalletModal';
 import { HeroPromoBanner, StripPromoBanner, AdCardGrid } from '@/components/PromoAdBanners';
+import AdBanner from '@/components/AdBanner';
 import { loadAdminConfig, DEFAULT_ADMIN_CONFIG, loadVaultAdminConfig, DEFAULT_VAULT_ADMIN_CONFIG } from '@/lib/airdropConfig';
 import { useAPY } from '@/lib/useAPY';
 import { useFBiTPrice, fmtUSD } from '@/lib/useFBiTPrice';
+import { useSiteConfig } from '@/lib/useSiteConfig';
 
 export default function HomePage() {
   const { walletAddress, totalPoints } = useAppStore();
@@ -16,15 +18,35 @@ export default function HomePage() {
   const { apy, loading: apyLoading } = useAPY();
   const fbitPrice = useFBiTPrice();
 
+  // Start with SSR-safe defaults — same on server AND client during hydration
   const [airdropCfg, setAirdropCfg] = useState(DEFAULT_ADMIN_CONFIG);
   const [vaultCfg,   setVaultCfg]   = useState(DEFAULT_VAULT_ADMIN_CONFIG);
   const [lbCfg,      setLbCfg]      = useState(DEFAULT_LB_ADMIN_CONFIG);
 
+  // Live-polling config — updates every 60s automatically
+  const { config: serverCfg, prizeChanged } = useSiteConfig();
+
+  // After hydration: apply localStorage overrides (client-only)
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setAirdropCfg(loadAdminConfig());
     setVaultCfg(loadVaultAdminConfig());
     setLbCfg(loadLeaderboardAdminConfig());
   }, []);
+
+  // When server config arrives: apply live server values
+  useEffect(() => {
+    if (!serverCfg) return;
+    setAirdropCfg(prev => ({
+      ...prev,
+      totalPrize:    serverCfg.totalPrize,
+      endDate:       serverCfg.endDate,
+      subtitle:      serverCfg.subtitle,
+      qualifyPoints: serverCfg.qualifyPoints,
+    }));
+    setVaultCfg(prev => ({ ...prev, monthlyPrize: serverCfg.vaultPrize }));
+  }, [serverCfg]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const campaigns = [
     {
@@ -116,12 +138,17 @@ export default function HomePage() {
           {[
             { label: 'Max APY',          value: apyLoading ? '...' : `${apy}%`,                                      icon: '📈' },
             { label: 'FBiT Price',       value: fbitPrice.loading ? '...' : fbitPrice.price > 0 ? fmtUSD(fbitPrice.price) : '—', icon: '🪙' },
-            { label: 'Total Prize Pool', value: '$22,500',                                                            icon: '💰' },
+            { label: 'Total Prize Pool', value: airdropCfg.totalPrize, icon: '💰', highlight: prizeChanged },
             { label: 'Referral Levels',  value: '10 Levels',                                                          icon: '🤝' },
           ].map(stat => (
             <div key={stat.label} className="text-center">
               <div className="text-2xl mb-1">{stat.icon}</div>
-              <div className="text-xl font-bold text-neon-green">{stat.value}</div>
+              <div className="text-xl font-bold text-neon-green">
+                {stat.value}
+                {'highlight' in stat && stat.highlight && (
+                  <span className="prize-live-badge">🔴 LIVE</span>
+                )}
+              </div>
               <div className="text-gray-500 text-xs mt-0.5">{stat.label}</div>
             </div>
           ))}
@@ -169,6 +196,11 @@ export default function HomePage() {
       {/* Hero Promo Banner */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 pb-10">
         <HeroPromoBanner />
+      </section>
+
+      {/* Ad Banner */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 pb-6">
+        <AdBanner page="home" />
       </section>
 
       {/* Ad Card Grid */}

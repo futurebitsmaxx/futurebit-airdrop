@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import {
-  AIRDROP_CONFIG, REG_STORAGE_KEY, type AirdropRegistration,
+  REG_STORAGE_KEY, type AirdropRegistration,
   loadAdminConfig, saveAdminConfig, DEFAULT_ADMIN_CONFIG, type AirdropAdminConfig,
   loadVaultAdminConfig, saveVaultAdminConfig, DEFAULT_VAULT_ADMIN_CONFIG, type LuckyVaultAdminConfig,
   type VaultRegistration,
@@ -20,13 +20,17 @@ import {
   loadSocialConfig, saveSocialConfig, DEFAULT_SOCIAL_CONFIG, type SocialConfig,
 } from '@/lib/socialConfig';
 import { APY_OVERRIDE_KEY } from '@/lib/useAPY';
+import {
+  loadAdSettings, saveAdSettings, AD_NETWORK_DEFS,
+  type AdNetworkSetting, DEFAULT_AD_SETTING,
+} from '@/lib/adNetworksConfig';
 
 
 function saveJSON(key: string, val: unknown) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* ignore */ }
 }
 
-type TabId = 'overview' | 'registrations' | 'vault' | 'competition' | 'leaderboard' | 'distribute' | 'settings' | 'social' | 'setup' | 'threats';
+type TabId = 'overview' | 'registrations' | 'vault' | 'competition' | 'leaderboard' | 'distribute' | 'settings' | 'social' | 'setup' | 'threats' | 'ads';
 interface ThreatEntry { ip: string; score: number; blocked: boolean; requests: number; }
 
 export default function AdminPage() {
@@ -64,12 +68,17 @@ export default function AdminPage() {
   const [compCfg,    setCompCfg]    = useState<CompAdminConfig>(DEFAULT_COMP_ADMIN_CONFIG);
   const [lbCfg,      setLbCfg]      = useState<LeaderboardAdminConfig>(DEFAULT_LB_ADMIN_CONFIG);
   const [socialCfg,  setSocialCfg]  = useState<SocialConfig>(DEFAULT_SOCIAL_CONFIG);
+  const [adSettings, setAdSettings] = useState<AdNetworkSetting[]>(() =>
+    AD_NETWORK_DEFS.map(n => DEFAULT_AD_SETTING(n.id))
+  );
 
   // Settings active section
   const [settingsSection, setSettingsSection] = useState<'airdrop' | 'vault' | 'competition' | 'leaderboard' | 'apy'>('airdrop');
   const [apyOverride, setApyOverride] = useState<string>('');
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    // One-time localStorage init — all calls batched by React 18 into a single render
     try {
       const raw = localStorage.getItem(REG_STORAGE_KEY);
       if (raw) setLocalReg(JSON.parse(raw) as AirdropRegistration);
@@ -81,11 +90,13 @@ export default function AdminPage() {
     setCompCfg(loadCompAdminConfig());
     setLbCfg(loadLeaderboardAdminConfig());
     setSocialCfg(loadSocialConfig());
+    setAdSettings(loadAdSettings());
     try {
       const raw = localStorage.getItem(APY_OVERRIDE_KEY);
       if (raw) setApyOverride(JSON.parse(raw).toString());
     } catch { /* ignore */ }
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Fetch all server-side registrations after login (cookie sent automatically)
   useEffect(() => {
@@ -115,6 +126,26 @@ export default function AdminPage() {
       if (apyOverride === '') { localStorage.removeItem(APY_OVERRIDE_KEY); }
       else if (Number.isFinite(val) && val >= 1) { localStorage.setItem(APY_OVERRIDE_KEY, JSON.stringify(val)); }
     }
+
+    // Also push to server API so all users see live updates
+    const serverPayload = {
+      totalPrize:    airdropCfg.totalPrize,
+      endDate:       airdropCfg.endDate,
+      maxWinners:    airdropCfg.maxWinners,
+      qualifyPoints: airdropCfg.qualifyPoints,
+      fbitPerPoint:  airdropCfg.fbitPerPoint,
+      badgeText:     airdropCfg.badgeText,
+      subtitle:      airdropCfg.subtitle,
+      vaultPrize:    vaultCfg.monthlyPrize,
+      vaultDrawDate: vaultCfg.drawDate,
+      compPrize:     compCfg.totalPrize,
+    };
+    fetch('/api/site-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(serverPayload),
+    }).catch(() => {/* silent — localStorage is fallback */});
+
     setSavedMsg(`✅ ${section} settings saved!`);
     setTimeout(() => setSavedMsg(''), 2500);
   }
@@ -305,6 +336,7 @@ export default function AdminPage() {
     { id: 'social',         label: '🔗 Social Links'  },
     { id: 'setup',          label: '🔌 Setup'         },
     { id: 'threats',        label: '🛡️ Threats'       },
+    { id: 'ads',            label: '📺 Ad Networks'   },
   ];
 
   return (
@@ -1403,7 +1435,7 @@ export default function AdminPage() {
                 { n: '1', title: 'Create a FREE account on Formspree.io',        body: 'Go to formspree.io → "New Form" → name it "FBiT Airdrop" → Create form', code: null },
                 { n: '2', title: 'Copy the form endpoint URL',                    body: 'Dashboard → "Integration" → copy your endpoint URL:', code: 'https://formspree.io/f/xpwzabcd  ← this one' },
                 { n: '3', title: 'Set the environment variable',                  body: 'Add this to your .env.local file in the project root:', code: 'NEXT_PUBLIC_AIRDROP_WEBHOOK=https://formspree.io/f/YOUR_FORM_ID' },
-                { n: '4', title: 'Change admin password (optional)',               body: 'In .env.local:', code: 'NEXT_PUBLIC_ADMIN_PASS=your-password-here' },
+                { n: '4', title: 'Change admin password (optional)',               body: 'In .env.local (server-side only — never use NEXT_PUBLIC_ prefix):', code: 'ADMIN_PASS=your-secure-password-here' },
                 { n: '5', title: 'Restart the site',                              body: 'Run npm run dev or redeploy. All registrations now go to Formspree.', code: null },
               ].map(step => (
                 <li key={step.n} className="flex gap-3">
@@ -1520,6 +1552,180 @@ export default function AdminPage() {
               <strong className="text-neon-green">Setup:</strong> Add <span className="font-mono text-white">ANTHROPIC_API_KEY=sk-ant-...</span> in <span className="font-mono text-white">.env.local</span> to enable Claude AI analysis.
               Without it, score-based blocking still works automatically.
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════
+          AD NETWORKS TAB
+      ══════════════════════════════════════════ */}
+      {activeTab === 'ads' && (
+        <div className="space-y-6">
+          <div className="stake-wallet-card">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">📺</span>
+              <div>
+                <h2 className="text-white font-bold text-lg">Ad Networks — Earn Money</h2>
+                <p className="text-gray-500 text-sm">Enable networks, enter your IDs, save — ads auto-appear on selected pages.</p>
+              </div>
+            </div>
+            <div className="bg-neon-green/5 border border-neon-green/20 rounded-xl px-4 py-3 text-xs text-gray-400 mt-3">
+              <strong className="text-neon-green">How to earn:</strong> Sign up on each network &rarr; get your Publisher ID / Zone ID &rarr; enter below &rarr; Save. Earnings deposit automatically to your account on each network.
+            </div>
+          </div>
+
+          {AD_NETWORK_DEFS.map((def, idx) => {
+            const setting: AdNetworkSetting =
+              adSettings.find(s => s.networkId === def.id) ?? DEFAULT_AD_SETTING(def.id);
+            const updateSetting = (patch: Partial<AdNetworkSetting>) => {
+              setAdSettings(prev => prev.map(s =>
+                s.networkId === def.id ? { ...s, ...patch } : s
+              ));
+            };
+            return (
+              <div key={def.id} className="stake-wallet-card">
+                {/* Network header */}
+                <div className="flex items-start gap-3 mb-4">
+                  <span className="text-3xl shrink-0">{def.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-white font-bold">{def.name}</h3>
+                      <span className="text-xs text-gray-500 bg-white/5 px-2 py-0.5 rounded-full">
+                        {def.format.join(' · ')}
+                      </span>
+                      <span className="text-xs text-neon-green bg-neon-green/10 px-2 py-0.5 rounded-full">
+                        Min: {def.minPayout}
+                      </span>
+                      <span className="text-xs text-gray-500">💳 {def.payment}</span>
+                    </div>
+                    <p className="text-gray-500 text-xs mt-1">{def.description}</p>
+                  </div>
+                  {/* Enable toggle */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-gray-500 text-xs">{setting.enabled ? 'ON' : 'OFF'}</span>
+                    <button
+                      type="button"
+                      onClick={() => updateSetting({ enabled: !setting.enabled })}
+                      className={`relative w-11 h-6 rounded-full transition-colors ${setting.enabled ? 'bg-neon-green' : 'bg-white/10'}`}
+                    >
+                      <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${setting.enabled ? 'left-6' : 'left-1'}`} />
+                    </button>
+                  </div>
+                </div>
+
+                {setting.enabled && (
+                  <div className="space-y-3 border-t border-white/5 pt-4">
+                    <p className="text-xs text-yellow-400 bg-yellow-400/8 rounded-lg px-3 py-2">
+                      💡 {def.embedGuide}
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {def.id !== 'custom' && (
+                        <>
+                          <div>
+                            <label className="text-gray-500 text-xs mb-1 block">Publisher / Site ID</label>
+                            <input
+                              className="staking-input w-full rounded-xl px-3 py-2 text-sm text-white"
+                              placeholder="e.g. ca-pub-1234567890"
+                              value={setting.publisherId}
+                              onChange={e => updateSetting({ publisherId: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-gray-500 text-xs mb-1 block">Zone / Ad Unit ID</label>
+                            <input
+                              className="staking-input w-full rounded-xl px-3 py-2 text-sm text-white"
+                              placeholder="e.g. 123456"
+                              value={setting.zoneId}
+                              onChange={e => updateSetting({ zoneId: e.target.value })}
+                            />
+                          </div>
+                          {def.format.includes('video') && (
+                            <div>
+                              <label className="text-gray-500 text-xs mb-1 block">Video Zone ID (optional)</label>
+                              <input
+                                className="staking-input w-full rounded-xl px-3 py-2 text-sm text-white"
+                                placeholder="Video-specific zone ID"
+                                value={setting.videoZoneId}
+                                onChange={e => updateSetting({ videoZoneId: e.target.value })}
+                              />
+                            </div>
+                          )}
+                          <div>
+                            <label className="text-gray-500 text-xs mb-1 block">Banner Size</label>
+                            <select
+                              className="staking-input w-full rounded-xl px-3 py-2 text-sm text-white"
+                              value={setting.bannerSize}
+                              onChange={e => updateSetting({ bannerSize: e.target.value as AdNetworkSetting['bannerSize'] })}
+                            >
+                              {(['728x90','300x250','320x50','160x600','300x600'] as const).map(s => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </>
+                      )}
+
+                      {def.id === 'custom' && (
+                        <div className="sm:col-span-2">
+                          <label className="text-gray-500 text-xs mb-1 block">Custom Embed Code (HTML / JS)</label>
+                          <textarea
+                            className="staking-input w-full rounded-xl px-3 py-2 text-sm text-white font-mono"
+                            rows={5}
+                            placeholder="Paste your ad network embed code here..."
+                            value={setting.customCode}
+                            onChange={e => updateSetting({ customCode: e.target.value })}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Page placement checkboxes */}
+                    <div>
+                      <label className="text-gray-500 text-xs mb-2 block">Show on pages:</label>
+                      <div className="flex flex-wrap gap-2">
+                        {(['home','guide','stake','airdrop','competition','leaderboard','swap'] as const).map(pg => (
+                          <label key={pg} className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={setting.placement.includes(pg)}
+                              onChange={e => {
+                                const newPl = e.target.checked
+                                  ? [...setting.placement, pg]
+                                  : setting.placement.filter(p => p !== pg);
+                                updateSetting({ placement: newPl });
+                              }}
+                              className="accent-neon-green"
+                            />
+                            <span className="text-gray-400 text-xs capitalize">{pg}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Sign up link */}
+                    {def.signupUrl && (
+                      <a href={def.signupUrl} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-neon-green hover:underline">
+                        🔗 Sign up / Get Zone ID on {def.name} ↗
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Save button */}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => { saveAdSettings(adSettings); setSavedMsg('Ad Networks saved!'); setTimeout(() => setSavedMsg(''), 2500); }}
+              className="btn-primary px-8"
+            >
+              💾 Save Ad Networks
+            </button>
+            {savedMsg && <span className="ml-4 text-neon-green text-sm self-center">{savedMsg}</span>}
           </div>
         </div>
       )}

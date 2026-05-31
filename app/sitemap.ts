@@ -12,6 +12,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/competition`, lastModified: now, changeFrequency: 'daily',   priority: 0.8 },
     { url: `${BASE}/leaderboard`, lastModified: now, changeFrequency: 'daily',   priority: 0.7 },
     { url: `${BASE}/swap`,        lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE}/daily-tasks`, lastModified: now, changeFrequency: 'daily',   priority: 0.8 },
     { url: `${BASE}/guide`,       lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${BASE}/docs`,        lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${BASE}/terms`,       lastModified: now, changeFrequency: 'yearly',  priority: 0.3 },

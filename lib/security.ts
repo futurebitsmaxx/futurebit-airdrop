@@ -36,12 +36,13 @@ export function rateLimit(key: string, max: number, windowMs: number): boolean {
 }
 
 // ── IP Extraction ─────────────────────────────────────────────────────────────
+// Prefer Vercel's verified header over X-Forwarded-For (which can be spoofed)
 export function getIp(req: NextRequest): string {
-  return (
-    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
-    req.headers.get('x-real-ip') ??
-    'unknown'
-  );
+  // x-vercel-forwarded-for is set by Vercel's edge and cannot be spoofed by clients
+  const vercelIp = req.headers.get('x-vercel-forwarded-for')?.split(',')[0].trim();
+  if (vercelIp && vercelIp !== 'unknown') return vercelIp;
+  // Fallback for local dev
+  return req.headers.get('x-real-ip') ?? 'unknown';
 }
 
 // ── HMAC Session Token (stateless — no DB needed) ────────────────────────────

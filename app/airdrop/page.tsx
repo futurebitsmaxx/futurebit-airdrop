@@ -3,16 +3,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import WalletModal from '@/components/WalletModal';
+import VideoAdModal from '@/components/VideoAdModal';
+import AdBanner from '@/components/AdBanner';
 import { fetchFBiTBalance, fetchSolBalance, fetchSolanaStakingInfo, type SolanaStakingInfo } from '@/lib/solanaService';
 import {
   submitRegistration, loadRegistration, genTxId,
   loadAdminConfig, DEFAULT_ADMIN_CONFIG, type AirdropAdminConfig, type AirdropRegistration,
 } from '@/lib/airdropConfig';
+import { useSiteConfig } from '@/lib/useSiteConfig';
 
 export default function AirdropPage() {
-  const { walletAddress, totalPoints, tasks, completeTask } = useAppStore();
-  const [cfg,           setCfg]          = useState<AirdropAdminConfig>(DEFAULT_ADMIN_CONFIG);
-  const [showWallet,    setShowWallet]    = useState(false);
+  const { walletAddress, totalPoints, tasks, completeTask,
+          dailyVideoCount, dailyVideoDate, watchVideoAd } = useAppStore();
+  const [showWallet,     setShowWallet]     = useState(false);
+  const [showVideoAd, setShowVideoAd] = useState(false);
   const [copied,        setCopied]        = useState(false);
   const [fetchingChain, setFetchingChain]   = useState(false);
   const [fbitBalance,   setFbitBalance]     = useState('0.000000');
@@ -25,15 +29,50 @@ export default function AirdropPage() {
   const [regLoading,    setRegLoading]    = useState(false);
   const [regError,      setRegError]      = useState('');
 
-  // Load registration + admin config from localStorage on mount
+  // Start with SSR-safe defaults — same on server AND client during hydration
+  const [cfg, setCfg] = useState<AirdropAdminConfig>(DEFAULT_ADMIN_CONFIG);
+
+  // Live-polling server config — 60s auto refresh
+  const { config: serverCfg } = useSiteConfig();
+
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setRegistration(loadRegistration());
+    // After hydration: apply localStorage (client-only)
     setCfg(loadAdminConfig());
   }, []);
 
+  // When server config arrives: apply live values
+  useEffect(() => {
+    if (!serverCfg) return;
+    setCfg(prev => ({
+      ...prev,
+      totalPrize:    serverCfg.totalPrize,
+      endDate:       serverCfg.endDate,
+      maxWinners:    serverCfg.maxWinners,
+      qualifyPoints: serverCfg.qualifyPoints,
+      fbitPerPoint:  serverCfg.fbitPerPoint,
+      badgeText:     serverCfg.badgeText,
+      subtitle:      serverCfg.subtitle,
+    }));
+  }, [serverCfg]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   const totalPts       = totalPoints + onChainPts;
   const progress       = Math.min(100, Math.round((totalPts / cfg.qualifyPoints) * 100));
+
+  // eslint-disable-next-line react-hooks/purity
+  const daysLeft   = Math.max(0, Math.ceil((new Date(cfg.endDate).getTime() - Date.now()) / 86_400_000));
+  const badgeLabel = new Date() > new Date(cfg.endDate)
+    ? '🎁 AIRDROP ENDED'
+    : `🎁 AIRDROP LIVE — ${daysLeft} Day${daysLeft === 1 ? '' : 's'} Remaining`;
   const completedCount = tasks.filter(t => t.completed).length;
+
+  // Daily video ad state — reset if date changed
+  const today = new Date().toISOString().slice(0, 10);
+  const todayVideoCount = dailyVideoDate === today ? dailyVideoCount : 0;
+  const videoRemaining  = Math.max(0, 4 - todayVideoCount);
+  const videoAdIds      = ['v1', 'v2', 'v3', 'v4'] as const;
   const progressRef    = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,6 +91,7 @@ export default function AirdropPage() {
   }
 
   // Fetch all Solana on-chain data whenever wallet connects / changes
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!walletAddress) {
       setOnChainPts(0);
@@ -71,10 +111,11 @@ export default function AirdropPage() {
       setStakingInfo(staking);
       // Points: +30 for FBiT balance, +50 if staking on-chain
       let pts = parseFloat(fbit) > 0 ? 30 : 0;
-      if (staking.isStaker) pts += 50;
+      if (staking?.isStaker) pts += 50;
       setOnChainPts(pts);
     }).catch(() => {}).finally(() => setFetchingChain(false));
   }, [walletAddress]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function handleRegister() {
     if (!walletAddress) return;
@@ -109,6 +150,11 @@ export default function AirdropPage() {
     setTimeout(() => completeTask(task.id), 1500);
   }
 
+  function handleWatchVideoAd() {
+    if (videoRemaining <= 0) return;
+    setShowVideoAd(true);
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
 
@@ -116,7 +162,7 @@ export default function AirdropPage() {
       <div className="text-center mb-10">
         <span className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full mb-5 live-badge">
           <span className="w-1.5 h-1.5 rounded-full bg-neon-green animate-pulse-neon" />
-          {cfg.badgeText}
+          {badgeLabel}
         </span>
         <h1 className="text-3xl sm:text-5xl font-extrabold text-white mb-3">
           FBiT Community <span className="text-neon-green">Airdrop</span>
@@ -287,8 +333,10 @@ export default function AirdropPage() {
           <h2 className="text-xl font-bold text-white">Points from Social Tasks</h2>
           <span className="text-gray-500 text-xs">Complete tasks, earn points!</span>
         </div>
-        <div className="space-y-3">
-          {tasks.map(task => (
+
+        {/* Social tasks */}
+        <div className="space-y-3 mb-4">
+          {tasks.filter(t => !t.action.startsWith('video:')).map(task => (
             <div
               key={task.id}
               className={`task-item p-4 flex items-center gap-4 ${task.completed ? 'completed' : ''}`}
@@ -311,6 +359,48 @@ export default function AirdropPage() {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* ── Daily Video Ads ── */}
+        <div className="rounded-2xl border border-purple-500/20 bg-purple-500/5 p-5 mt-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-white font-bold text-sm">📺 Watch Video Ads — Daily Bonus</p>
+              <p className="text-gray-500 text-xs mt-0.5">+10 points per video · max 4 videos/day · resets at midnight</p>
+            </div>
+            <span className={`text-sm font-black ${videoRemaining > 0 ? 'text-purple-300' : 'text-gray-600'}`}>
+              {todayVideoCount}/4 today
+            </span>
+          </div>
+
+          {/* Progress dots */}
+          <div className="flex items-center gap-2 mb-4">
+            {videoAdIds.map((_, i) => (
+              <div
+                key={i}
+                className={`h-2 flex-1 rounded-full transition-all ${
+                  i < todayVideoCount
+                    ? 'bg-purple-400'
+                    : 'bg-white/10'
+                }`}
+              />
+            ))}
+          </div>
+
+          {videoRemaining > 0 ? (
+            <button
+              type="button"
+              onClick={handleWatchVideoAd}
+              className="w-full py-3 rounded-xl font-bold text-sm border border-purple-500/40 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 transition-colors"
+            >
+              ▶️ Watch Ad &amp; Claim +10 Points ({videoRemaining} remaining today)
+            </button>
+          ) : (
+            <div className="text-center py-3 rounded-xl border border-white/5 bg-white/2">
+              <p className="text-gray-500 text-sm">✅ All 4 videos watched today!</p>
+              <p className="text-gray-600 text-xs mt-0.5">Come back tomorrow for +40 more points</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -345,6 +435,9 @@ export default function AirdropPage() {
           </a>
         </div>
       </div>
+
+      {/* ── AD BANNER ── */}
+      <AdBanner page="airdrop" className="my-6" />
 
       {/* ── PRIZE INFO ── */}
       <div className="rounded-2xl p-6 airdrop-prize-card">
@@ -473,6 +566,16 @@ export default function AirdropPage() {
       </div>
 
       {showWallet && <WalletModal onClose={() => setShowWallet(false)} />}
+
+      {showVideoAd && (
+        <VideoAdModal
+          adId={videoAdIds[todayVideoCount] ?? 'v1'}
+          label={`Video Ad ${todayVideoCount + 1} of 4`}
+          points={10}
+          onClaim={() => { watchVideoAd(); }}
+          onClose={() => setShowVideoAd(false)}
+        />
+      )}
     </div>
   );
 }

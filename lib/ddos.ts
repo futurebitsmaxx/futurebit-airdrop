@@ -122,8 +122,9 @@ async function analyzeWithAI(ip: string, record: IpRecord, endpoint: string): Pr
 export type DDoSResult = 'ok' | 'block' | 'throttle' | 'rate-limited';
 
 export async function ddosCheck(req: NextRequest, endpoint: string): Promise<DDoSResult> {
+  // Use Vercel's verified IP (cannot be spoofed by clients)
   const ip = (
-    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
+    req.headers.get('x-vercel-forwarded-for')?.split(',')[0].trim() ??
     req.headers.get('x-real-ip') ??
     'unknown'
   );
@@ -178,7 +179,7 @@ export async function ddosCheck(req: NextRequest, endpoint: string): Promise<DDo
 
 // ── Penalize IP for bad behavior ──────────────────────────────────────────────
 export function penalizeIp(req: NextRequest, points: number): void {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim()
+  const ip = req.headers.get('x-vercel-forwarded-for')?.split(',')[0].trim()
            ?? req.headers.get('x-real-ip')
            ?? 'unknown';
   if (ip === 'unknown') return; // don't penalize shared 'unknown' key

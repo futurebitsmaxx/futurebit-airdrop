@@ -35,7 +35,7 @@ export default function Footer() {
               <span className="font-bold">Future<span className="text-neon-green">Bit</span></span>
             </div>
             <p className="text-gray-500 text-sm leading-relaxed">
-              Solana DeFi staking platform — up to {apy}% APY, 10-level referrals, and FBiT token trading on Jupiter.
+              Solana DeFi staking platform — up to {apy ?? '—'}% APY, 10-level referrals, and FBiT token trading on Jupiter.
             </p>
           </div>
 

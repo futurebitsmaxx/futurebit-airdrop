@@ -115,7 +115,7 @@ export function FloatingAdCard() {
   if (!visible) return null;
 
   return (
-    <div className="floating-ad-card">
+    <div className="floating-ad-card hidden lg:block">
       <button
         type="button"
         onClick={() => setVisible(false)}
