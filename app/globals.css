@@ -1620,6 +1620,8 @@ main { padding-top: calc(64px + 32px) !important; }
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid;
+  display: flex;
+  flex-direction: column;
 }
 .promo-ad-area--green {
   background: linear-gradient(135deg, rgba(0,255,136,0.08), rgba(0,212,255,0.05));

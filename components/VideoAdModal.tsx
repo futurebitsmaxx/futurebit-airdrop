@@ -11,19 +11,62 @@ interface Props {
 }
 
 const WATCH_SECONDS = 30;
+const ZONE_ID       = 'gsmkd1asq';
+
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    aclib?: any;
+  }
+}
+
+// Rotating FutureBit promo fallback banners
+const PROMOS = [
+  { theme: 'green',  headline: '🚀 Earn 300% APY on FBiT',          body: 'Stake FBiT tokens for 60+ days and earn industry-leading returns. Limited slots available!' },
+  { theme: 'blue',   headline: '🎁 $10,000 FBiT Airdrop is LIVE',    body: 'Complete daily tasks & refer friends to qualify for the biggest Solana airdrop of 2026.' },
+  { theme: 'purple', headline: '🎰 Win Up to 1,000 FBiT Daily',      body: 'Stake FBiT to earn Lucky Vault raffle tickets. Guaranteed weekly prize draws!' },
+  { theme: 'orange', headline: '🏆 $50,000 Trading Prize Pool',       body: 'Trade FBiT on Jupiter DEX and climb the weekly leaderboard for massive cash prizes.' },
+] as const;
 
 export default function VideoAdModal({ label, points, onClaim, onClose }: Props) {
-  const [timeLeft, setTimeLeft] = useState(WATCH_SECONDS);
-  const [canClaim, setCanClaim] = useState(false);
-  const [claimed,  setClaimed]  = useState(false);
+  const [timeLeft,    setTimeLeft]    = useState(WATCH_SECONDS);
+  const [canClaim,    setCanClaim]    = useState(false);
+  const [claimed,     setClaimed]     = useState(false);
+  const [adInjected,  setAdInjected]  = useState(false);
+  const [promoIdx]                    = useState(() => Math.floor(Math.random() * PROMOS.length));
 
   const startRef    = useRef(Date.now());
   const rafRef      = useRef<number>(0);
   const progressRef = useRef<HTMLDivElement>(null);
+  const adDivId     = useRef(`adcash-banner-${Date.now()}`);
 
-  // aclib.runAutoTag is called globally by AdcashAutoTag in layout — no duplicate call needed
+  // ── Try to inject Adcash banner into our container ──────────────────────
+  useEffect(() => {
+    const containerId = adDivId.current;
+    let attempts = 0;
 
-  // Countdown timer
+    const timer = setInterval(() => {
+      attempts++;
+
+      if (window.aclib) {
+        clearInterval(timer);
+        try {
+          // runBanner targets a specific div — works with Banner zones
+          window.aclib.runBanner({ zoneId: ZONE_ID, container: `#${containerId}` });
+          setAdInjected(true);
+        } catch {
+          // AutoTag zones don't support runBanner — fall through to promo
+        }
+        return;
+      }
+
+      if (attempts >= 60) clearInterval(timer); // 6 s timeout → show promo
+    }, 100);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // ── Countdown timer ──────────────────────────────────────────────────────
   useEffect(() => {
     function tick() {
       const elapsed   = Math.floor((Date.now() - startRef.current) / 1000);
@@ -50,6 +93,8 @@ export default function VideoAdModal({ label, points, onClaim, onClose }: Props)
     setTimeout(() => { onClaim(); onClose(); }, 900);
   }
 
+  const promo = PROMOS[promoIdx];
+
   return (
     <div className="modal-backdrop fixed inset-0 z-200 flex items-center justify-center p-4">
       <div className="video-ad-modal">
@@ -66,23 +111,39 @@ export default function VideoAdModal({ label, points, onClaim, onClose }: Props)
           )}
         </div>
 
-        {/* Ad display area — Adcash AutoTag fills this */}
+        {/* ── Ad area ── */}
         <div className="video-ad-player">
+
+          {/* Adcash banner target div */}
+          <div id={adDivId.current} className="w-full h-full" />
+
+          {/* Promo fallback — shown when Adcash banner isn't injected */}
+          {!adInjected && (
+            <div className={`promo-ad-area promo-ad-area--${promo.theme} absolute inset-0`}>
+              <div className="p-5 flex flex-col h-full">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-gray-600 border border-white/10 rounded px-2 py-0.5">
+                    Sponsored
+                  </span>
+                  <span className="text-[10px] font-bold text-white/50 bg-black/30 rounded-lg px-2.5 py-0.5">
+                    {timeLeft}s
+                  </span>
+                </div>
+                <h3 className="text-white font-bold text-lg leading-snug mb-2">{promo.headline}</h3>
+                <p className="text-gray-400 text-xs leading-relaxed flex-1">{promo.body}</p>
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-gray-600 text-[10px]">futurebit.io</span>
+                  <span className="promo-ad-cta">Learn More →</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* "Advertisement" badge overlay */}
           <div className="video-ad-overlay-top pointer-events-none">
             <span className="text-[9px] font-bold uppercase tracking-widest text-white/60 bg-black/40 rounded px-2 py-0.5">
               Advertisement
             </span>
-            {!canClaim && (
-              <span className="text-[10px] font-bold text-white bg-black/60 rounded-lg px-2.5 py-1">
-                {timeLeft}s
-              </span>
-            )}
-          </div>
-
-          {/* Placeholder shown while Adcash loads the ad */}
-          <div className="flex flex-col items-center justify-center gap-2 text-gray-700 text-xs select-none">
-            <span className="text-2xl">📡</span>
-            <span>Loading advertisement…</span>
           </div>
         </div>
 

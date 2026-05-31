@@ -2,43 +2,47 @@
 
 import { useEffect } from 'react';
 
-const ZONE_ID    = 'gsmkd1asq';
-const SCRIPT_ID  = 'aclib-autotag-js';
+const ZONE_ID = 'gsmkd1asq';
 const SCRIPT_SRC = 'https://static.ackcdn.com/js/aclib.js';
+const SCRIPT_ID  = 'aclib-global-js';
+
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    aclib?: any;
+  }
+}
 
 export default function AdcashAutoTag() {
   useEffect(() => {
-    // Prevent double-loading across navigations
-    if (document.getElementById(SCRIPT_ID)) {
-      // Library already present — just run the tag
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (window as any).aclib?.runAutoTag({ zoneId: ZONE_ID });
-      } catch { /* ignore */ }
+    // If aclib already ready, just fire the tag
+    if (window.aclib) {
+      try { window.aclib.runAutoTag({ zoneId: ZONE_ID }); } catch { /* ignore */ }
       return;
     }
 
-    // Create <script type="text/javascript" src="...aclib.js"></script>
-    // and append to <body> exactly as Adcash instructs
-    const script = document.createElement('script');
-    script.id   = SCRIPT_ID;
-    script.type = 'text/javascript';
-    script.src  = SCRIPT_SRC;
-    script.async = true;
+    // Inject aclib.js once
+    if (!document.getElementById(SCRIPT_ID)) {
+      const s = document.createElement('script');
+      s.id   = SCRIPT_ID;
+      s.src  = SCRIPT_SRC;
+      s.type = 'text/javascript';
+      document.body.appendChild(s);
+    }
 
-    script.onload = () => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (window as any).aclib.runAutoTag({ zoneId: ZONE_ID });
-      } catch { /* ignore */ }
-    };
+    // Poll every 100 ms until aclib appears (max 10 s)
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts++;
+      if (window.aclib) {
+        clearInterval(timer);
+        try { window.aclib.runAutoTag({ zoneId: ZONE_ID }); } catch { /* ignore */ }
+      } else if (attempts >= 100) {
+        clearInterval(timer);
+      }
+    }, 100);
 
-    script.onerror = () => {
-      // Remove failed script so it can retry on next mount
-      document.getElementById(SCRIPT_ID)?.remove();
-    };
-
-    document.body.appendChild(script);
+    return () => clearInterval(timer);
   }, []);
 
   return null;
