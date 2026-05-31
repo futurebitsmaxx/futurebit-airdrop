@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PromoBanner from '@/components/PromoBanner';
 import { FloatingAdCard } from '@/components/PromoAdBanners';
-import AdcashAutoTag from '@/components/AdcashAutoTag';
 
 const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://futurebit.io';
 
@@ -109,7 +109,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </main>
         <Footer />
         <FloatingAdCard />
-        <AdcashAutoTag />
+
+        {/* Adcash AutoTag — exactly as provided, before </body> */}
+        <Script
+          src="https://static.ackcdn.com/js/aclib.js"
+          strategy="afterInteractive"
+        />
+        <Script id="adcash-autotag" strategy="afterInteractive">{`
+          (function run() {
+            if (window.aclib) {
+              aclib.runAutoTag({ zoneId: 'gsmkd1asq' });
+            } else {
+              setTimeout(run, 100);
+            }
+          })();
+        `}</Script>
       </body>
     </html>
   );
